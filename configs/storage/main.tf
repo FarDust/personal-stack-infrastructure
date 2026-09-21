@@ -16,7 +16,7 @@ resource "google_storage_bucket" "shared_artifacts" {
   }
 
   labels = {
-    app     = "ncc"
+    app     = "infra"
     purpose = "data"
   }
 }
