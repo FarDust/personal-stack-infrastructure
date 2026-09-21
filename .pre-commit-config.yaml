@@ -10,7 +10,7 @@ repos:
         name: Terraform format
         entry: terraform fmt -check
         language: system
-        files: \.tf$
+        files: (\.tf|\.tftest\.hcl)$
       - id: terraform-init
         name: Terraform initialize
         entry: terraform init -backend=false -input=false -lockfile=readonly
@@ -20,6 +20,12 @@ repos:
       - id: terraform-validate
         name: Terraform validate
         entry: terraform validate -no-color
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: terraform-test
+        name: Terraform regression tests
+        entry: terraform test -no-color
         language: system
         pass_filenames: false
         always_run: true

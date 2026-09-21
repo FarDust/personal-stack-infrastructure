@@ -33,3 +33,5 @@ jobs:
         run: terraform init -backend=false -input=false -lockfile=readonly
       - name: Validate configuration
         run: terraform validate -no-color
+      - name: Run mocked Terraform regression tests
+        run: terraform test -no-color

@@ -116,6 +116,14 @@ Sources:
 
 ## Verification and delivery
 
+The committed `tests/*.tftest.hcl` regression suite uses a mocked Google provider
+and synthetic identities. It exercises owner-condition preservation and
+sensitivity, invalid-owner rejection, legacy binding conflict prevention,
+reviewed-region validation, private shared storage, DVC namespace outputs,
+scoped writer aliases, and rejection of public principals. Run `terraform test
+-no-color` after initialization; the suite runs in pre-commit and GitHub Actions.
+Mocked tests make no Google Cloud changes and do not replace the full remote plan.
+
 1. Initialize with the checked-in lock file and run formatting and validation.
 2. Run `pre-commit run --all-files`, Gitleaks, and GitGuardian before publication.
 3. Publish only reviewed source on a feature branch. Keep credentials, tfvars,
