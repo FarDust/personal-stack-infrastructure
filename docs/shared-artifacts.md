@@ -1,11 +1,11 @@
-# DVC storage and delivery
+# Shared artifact storage and delivery
 
 ## Configuration
 
 The root composes the private artifact bucket through `configs/storage`.
 The bucket's name is supplied by the sensitive Terraform Cloud variable
-`gpu_idle_lab_dvc_bucket_name`; there is no hardcoded deployment name.
-The independently configurable `gpu_idle_lab_dvc_location` selects the bucket
+`artifact_bucket_name`; there is no hardcoded deployment name.
+The independently configurable `artifact_bucket_location` selects the bucket
 region without changing the provider's existing `gcp_region` setting.
 
 The selected workspace location is `southamerica-west1` (Santiago), near the
@@ -13,6 +13,14 @@ artifact-consuming workload. This is a new bucket, not a migration of existing
 data. The region is an explicit workspace decision, not a claim that the closest
 region is always cheapest. Bucket names are explicit deployment inputs; no
 broader bucket naming formula was found in the existing infrastructure sources.
+
+The bucket is shared by agent and cluster workloads, not owned by one DVC project.
+Use `gs://<artifact_bucket_name>/dvc/<project-slug>/` for each DVC project.
+Other artifacts use separately owned
+project prefixes such as `artifacts/<project-slug>/`. These are object-name
+prefixes, not provisioned folders or independent IAM boundaries. Keep deletion
+and garbage collection scoped to the owning project; never run them against the
+shared bucket root.
 
 `github_repository_owner` is required and sensitive, with no default. The
 federation provider restricts its mapped repository owner to that input. Its
@@ -44,10 +52,15 @@ addresses and review IAM changes, rather than silently changing this baseline.
 
 The bucket enforces public-access prevention and uniform bucket-level access,
 enables versioning, prevents Terraform destruction, and disables force-destroy.
-This change grants no new principal access. DVC uses an approved Application
-Default Credentials identity whose access must be checked before upload. The
+Approved identities are supplied through sensitive `artifact_bucket_writers`.
+The module grants additive bucket-level `roles/storage.objectUser` memberships,
+not project-wide storage administration or public access. Only non-secret map
+aliases are exposed as resource keys; principal values remain sensitive.
+DVC uses existing approved Application Default Credentials or managed cluster
+credentials. No new static service-account key is created or distributed. The
 existing GitHub Secret Manager account is not implicitly authorized for storage,
-and these CI workflows do not upload DVC data.
+and these CI workflows do not upload DVC data. Verify each consuming identity's
+access after provisioning; IAM configuration is not a credential-distribution mechanism.
 
 No automatic object expiration is introduced. Stored bytes include live objects,
 noncurrent versions, and soft-deleted objects; the local artifact quota is not a
@@ -60,22 +73,28 @@ policy before adding lifecycle deletion.
 
 | Item | Quantity | Rate | Monthly USD |
 | --- | ---: | ---: | ---: |
-| Standard storage in Santiago | 5 GiB | 0.03/GiB-month | 0.15 |
-| Class A operations | 10,000 | 0.05/10,000 | 0.05 |
-| Class B operations | 100,000 | 0.004/10,000 | 0.04 |
-| Worldwide egress modeled for artifact downloads | 20 GiB | 0.12/GiB | 2.40 |
-| Total | | | **2.64** |
+| Standard storage in Santiago | 50 GiB | 0.03/GiB-month | 1.50 |
+| Class A operations | 100,000 | 0.05/10,000 | 0.50 |
+| Class B operations | 1,000,000 | 0.004/10,000 | 0.40 |
+| Worldwide egress modeled for artifact downloads | 100 GiB | 0.12/GiB | 12.00 |
+| Total | | | **14.40** |
 
 The Google Cloud Billing catalog and Infracost confirmed Santiago's storage
-price. Iowa regional Standard storage is 0.02/GiB-month before applicable free
-tier, so locality costs approximately 0.05/month extra for this stored volume.
+price. Catalog SKU description `Standard Storage Santiago` uses `GiBy.mo`, with
+USD `units=0`, `nanos=30000000`, effective 2026-09-20T07:00:00Z. Infracost 0.10.45
+independently reproduces the table. Iowa regional Standard storage is
+0.02/GiB-month before applicable free tier, so locality costs approximately
+0.50/month extra for this stored volume.
 No free-tier discount is assumed for Santiago.
 
 The repository's existing service-account/IAM resources add no recurring IAM
-service charge. Infracost does not price the identity pool/provider resources;
-their zero cost is based on the IAM service pricing, not inferred from missing
-coverage. HCP Terraform's estimate matched zero resources and is not used as
-the cost gate.
+service charge. Infracost 0.10.45 classifies the IAM resources as no-price
+resources and reports no unsupported resources for this configuration, consistent
+with the IAM service pricing. HCP Terraform's incomplete estimate is not used as
+the cost gate. Both baseline and head use their checked-in usage model when one
+exists. Region validation binds deployment to the costed Santiago region; CI
+also requires the expected bucket resource and the reviewed 14.40 USD projection.
+Reassess the model and its CI gate together when pricing or usage changes.
 
 The modeled repository cost is below the 30 USD/month ceiling. This is a
 projection under explicit assumptions, not a hard spending limit or an actual
@@ -89,7 +108,7 @@ Sources:
 
 - <https://cloud.google.com/storage/pricing>
 - <https://cloud.google.com/storage/docs/locations>
-- <https://cloud.google.com/billing/docs/how-to/catalog-api>
+- <https://docs.cloud.google.com/billing/v1/how-tos/catalog-api>
 - <https://cloud.google.com/iam/pricing>
 - <https://cloud.google.com/storage/docs/object-versioning>
 - <https://cloud.google.com/storage/docs/soft-delete>
