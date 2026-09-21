@@ -11,14 +11,17 @@ variables {
 run "preserve_owner_condition" {
   command = plan
   module {
-    source = "./modules/github-identity-federation"
+    source = "./.terraform/modules/github-identity-federation/modules/github-identity-federation"
+  }
+  providers = {
+    google = google
   }
   assert {
-    condition     = nonsensitive(google_iam_workload_identity_pool_provider.identity-pool-provider.attribute_condition) == "attribute.repository_owner == \"example-owner\"\n"
+    condition     = nonsensitive(output.owner_condition) == "attribute.repository_owner == \"example-owner\"\n"
     error_message = "The owner condition must preserve its exact expression and newline."
   }
   assert {
-    condition     = issensitive(google_iam_workload_identity_pool_provider.identity-pool-provider.attribute_condition)
+    condition     = issensitive(output.owner_condition)
     error_message = "The owner condition must remain sensitive."
   }
 }
@@ -26,7 +29,10 @@ run "preserve_owner_condition" {
 run "reject_empty_owner" {
   command = plan
   module {
-    source = "./modules/github-identity-federation"
+    source = "./.terraform/modules/github-identity-federation/modules/github-identity-federation"
+  }
+  providers = {
+    google = google
   }
   variables {
     github_repository_owner = ""
@@ -37,7 +43,10 @@ run "reject_empty_owner" {
 run "reject_condition_injection" {
   command = plan
   module {
-    source = "./modules/github-identity-federation"
+    source = "./.terraform/modules/github-identity-federation/modules/github-identity-federation"
+  }
+  providers = {
+    google = google
   }
   variables {
     github_repository_owner = "example\" || true || \""
@@ -48,7 +57,10 @@ run "reject_condition_injection" {
 run "reject_invalid_owner_hyphens" {
   command = plan
   module {
-    source = "./modules/github-identity-federation"
+    source = "./.terraform/modules/github-identity-federation/modules/github-identity-federation"
+  }
+  providers = {
+    google = google
   }
   variables {
     github_repository_owner = "example--owner-"

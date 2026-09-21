@@ -29,18 +29,23 @@ An existing non-sensitive state value can produce a sensitivity-only planned
 update: compare raw before/after values privately, rather than interpreting the
 UI's replacement of visible text with a hidden value as removal of the condition.
 
-## Preserved federation behavior
+## Shared federation module contract
 
-`modules/github-identity-federation` is a maintained local snapshot of
-`terraform-infrastructure` revision
-`752db911c1d9cc8d1ce4a665f5d5a1791796bd5d`, with the required owner condition
-added. The source is available at
-<https://github.com/FarDust/terraform-infrastructure/tree/752db911c1d9cc8d1ce4a665f5d5a1791796bd5d/modules/github-identity-federation>.
+The root consumes the shared `github-identity-federation` module directly from
+`terraform-infrastructure`, pinned to immutable revision
+`132e099a43d302b472863e110f11338833503eb6`, published as signed release
+[`v0.1.0`](https://github.com/FarDust/terraform-infrastructure/releases/tag/v0.1.0).
+This source pin is not evidence that a consumer apply has occurred. The source is available at
+<https://github.com/FarDust/terraform-infrastructure/tree/132e099a43d302b472863e110f11338833503eb6/modules/github-identity-federation>.
 
-Resource addresses, legacy account naming, and repository-scoped IAM binding
-semantics are retained. Upgrading directly to a newer upstream revision would
-also migrate IAM bindings to IAM members and alter account naming; that is a
-separate migration, not part of provisioning artifact storage.
+The shared module defaults to modern additive IAM members. This consumer sets
+`legacy_mode = true` explicitly so existing resource addresses, the
+`-federated-user` account naming, and authoritative repository-scoped IAM
+bindings remain unchanged. Its required sensitive owner input produces the
+same exact trailing-newline condition and is exposed as a sensitive module
+output for composition verification. Binding/member counts and federated-user
+outputs allow tests to verify the selected compatibility mode without reading
+vendored implementation resources.
 
 The legacy binding layout accepts at most one distinct allowed repository per
 account. Validation rejects multiple repositories before planning because
@@ -137,13 +142,21 @@ Sources:
 
 ## Verification and delivery
 
-The committed `tests/*.tftest.hcl` regression suite uses a mocked Google provider
-and synthetic identities. It exercises owner-condition preservation and
+The committed Terraform test suite uses a mocked Google provider and synthetic
+identities. It exercises owner-condition preservation and
 sensitivity, invalid-owner rejection, legacy binding conflict prevention,
 regional-input validation, private shared storage, DVC namespace outputs,
 scoped writer aliases, and rejection of public principals. Run `terraform test
 -no-color` after initialization; the suite runs in pre-commit and GitHub Actions.
 Mocked tests make no Google Cloud changes and do not replace the full remote plan.
+
+Initialize with the default project-local `.terraform` data directory before
+running the suite. The root-level federation tests directly exercise the pinned
+module installed under `.terraform/modules/github-identity-federation`, because
+Terraform test module blocks accept local or registry sources, not Git URLs.
+This keeps rejection tests attached to the released module's real validations
+instead of copies in a test fixture. Fresh-cache initialization is covered during
+verification; retain the root module label when preserving its state addresses.
 
 1. Initialize with the checked-in lock file and run formatting and validation.
 2. Run `pre-commit run --all-files`, Gitleaks, and GitGuardian before publication.
