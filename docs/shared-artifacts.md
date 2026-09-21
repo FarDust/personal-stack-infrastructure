@@ -67,7 +67,10 @@ Do not remove the grant through an IAM API or edit raw state JSON.
 Verify that only the binding association disappeared and the live policy stayed
 unchanged. A fresh full speculative plan, followed by the merged revision's normal
 plan, must show only the expected existing-member import, with no resource
-creation, update, replacement, or destruction. Apply that reviewed import, clear
+creation, value-changing update, replacement, or destruction. Importing an
+unmarked value into a sensitive configuration can show a metadata-only update;
+compare raw before/after values privately to distinguish it from an IAM change.
+Apply that reviewed import, clear
 the private import map, then verify modern state, identical live permissions,
 and a full zero-change plan. On failure, inspect the current state before retrying;
 do not blindly restore an older snapshot over subsequent writes.
