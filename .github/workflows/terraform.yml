@@ -23,6 +23,12 @@ jobs:
           terraform_wrapper: false
       - name: Check formatting
         run: terraform fmt -check -recursive
+      - name: Enforce LF text files
+        run: |
+          if git ls-files --eol | grep -Eq '(^|[[:space:]])[iw]/(crlf|mixed)([[:space:]]|$)'; then
+            echo 'Tracked text files must use LF line endings.'
+            exit 1
+          fi
       - name: Initialize without remote state access
         run: terraform init -backend=false -input=false -lockfile=readonly
       - name: Validate configuration
