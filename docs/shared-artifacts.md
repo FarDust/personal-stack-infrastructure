@@ -101,17 +101,17 @@ service charge. Infracost 0.10.45 classifies the IAM resources as no-price
 resources and reports no unsupported resources for this configuration, consistent
 with the IAM service pricing. HCP Terraform's incomplete estimate is not used as
 the cost gate. Both baseline and head use their checked-in usage model when one
-exists. Configure the CI secret `ARTIFACT_BUCKET_LOCATION` from the authoritative
-workspace location and verify that the exact-revision remote plan uses that same
-value. CI requires the expected bucket resource, complete supported-resource
-coverage, and a positive price for the separate populated example. It does not
-assert that one fixed dollar total is a realistic bill.
+exists. Public PR CI uses a synthetic region and usage inputs only. It requires
+the expected bucket resource, complete supported-resource coverage, and a
+positive price for the populated example. This checks pricing coverage, not the
+actual deployment budget or location, and it does not assert a realistic bill.
 
-CI compares the proposed incremental model plus the private account baseline
-`INFRA_BASELINE_MONTHLY_FORECAST` against `INFRA_MONTHLY_BUDGET`.
-`INFRA_BILLING_PERIOD` must identify the current month. Refresh the private
-baseline from authorized billing evidence when reviewing deployment or usage
-changes; keep billing exports and account-specific observations outside this repo.
+Before deployment, a trusted operator evaluates `cost/budget.jq` from the
+reviewed immutable revision using the actual workspace location, incremental
+usage, current account forecast, and budget. Its billing period must identify
+the current month. Keep real financial inputs out of PR-controlled jobs and
+scripts; refresh them from authorized billing evidence privately. Keep billing
+exports and account-specific observations outside this repository.
 The cost-admission function has synthetic regression cases for empty usage,
 remaining budget, excess spending, missing prices, incomplete coverage and stale
 periods. A forecast remains uncertain, is not an invoice, and is not a hard cap.

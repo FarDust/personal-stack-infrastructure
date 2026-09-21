@@ -12,10 +12,7 @@ jobs:
     env:
       TF_ROOT: .
       INFRACOST_ENABLE_CLOUD: true
-      ARTIFACT_BUCKET_LOCATION: ${{ secrets.ARTIFACT_BUCKET_LOCATION }}
-      INFRA_MONTHLY_BUDGET: ${{ secrets.INFRA_MONTHLY_BUDGET }}
-      INFRA_BASELINE_MONTHLY_FORECAST: ${{ secrets.INFRA_BASELINE_MONTHLY_FORECAST }}
-      INFRA_BILLING_PERIOD: ${{ secrets.INFRA_BILLING_PERIOD }}
+      COST_FIXTURE_LOCATION: us-central1
 
     steps:
 
@@ -41,7 +38,7 @@ jobs:
           usage_args=()
           if [ -f infracost-usage.yml ]; then
             usage_args+=(--usage-file=infracost-usage.yml)
-            usage_args+=(--terraform-var="artifact_bucket_location=${ARTIFACT_BUCKET_LOCATION}")
+            usage_args+=(--terraform-var="artifact_bucket_location=${COST_FIXTURE_LOCATION}")
           fi
           infracost breakdown --path=${TF_ROOT} \
                               "${usage_args[@]}" \
@@ -60,23 +57,24 @@ jobs:
         run: |
           infracost breakdown --path=${TF_ROOT} \
                           --usage-file=infracost-usage.yml \
-                          --terraform-var="artifact_bucket_location=${ARTIFACT_BUCKET_LOCATION}" \
+                          --terraform-var="artifact_bucket_location=${COST_FIXTURE_LOCATION}" \
                           --format=json \
                           --out-file=/tmp/infracost-head.json
           infracost diff --path=${TF_ROOT} \
                           --usage-file=infracost-usage.yml \
-                          --terraform-var="artifact_bucket_location=${ARTIFACT_BUCKET_LOCATION}" \
+                          --terraform-var="artifact_bucket_location=${COST_FIXTURE_LOCATION}" \
                           --format=json \
                           --compare-to=/tmp/infracost-base.json \
                           --out-file=/tmp/infracost.json
 
-      - name: Check projected monthly cost
+      - name: Check public cost fixture coverage
         run: |
-          jq -L cost -e --argjson budget "${INFRA_MONTHLY_BUDGET}" \
-                --argjson baseline "${INFRA_BASELINE_MONTHLY_FORECAST}" \
-                --arg period "${INFRA_BILLING_PERIOD}" \
-                'include "budget"; within_budget($baseline; $budget; $period)' \
-                /tmp/infracost-head.json
+          jq -e '
+            .currency == "USD" and
+            (.totalMonthlyCost | tonumber) >= 0 and
+            .summary.totalUnsupportedResources == 0 and
+            ([.projects[].breakdown.resources[]? | select(.name == "module.storage.google_storage_bucket.shared_artifacts")] | length) == 1
+          ' /tmp/infracost-head.json
 
       - name: Test cost admission boundaries
         run: |
@@ -100,7 +98,7 @@ jobs:
         run: |
           infracost breakdown --path=${TF_ROOT} \
                           --usage-file=cost/active-example.yml \
-                          --terraform-var="artifact_bucket_location=${ARTIFACT_BUCKET_LOCATION}" \
+                          --terraform-var="artifact_bucket_location=${COST_FIXTURE_LOCATION}" \
                           --format=json \
                           --out-file=/tmp/infracost-example.json
           jq -e '(.totalMonthlyCost | tonumber) > 0 and .summary.totalUnsupportedResources == 0' /tmp/infracost-example.json
