@@ -1,0 +1,13 @@
+.git/
+.terraform/
+.infracost/
+tfvars/
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.json
+.env
+.env.*
+credentials*.json
