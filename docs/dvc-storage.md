@@ -34,6 +34,12 @@ semantics are retained. Upgrading directly to a newer upstream revision would
 also migrate IAM bindings to IAM members and alter account naming; that is a
 separate migration, not part of provisioning artifact storage.
 
+The legacy binding layout accepts at most one distinct allowed repository per
+account. Validation rejects multiple repositories before planning because
+multiple authoritative bindings for the same role would otherwise overwrite
+one another. A future multi-repository migration must explicitly preserve state
+addresses and review IAM changes, rather than silently changing this baseline.
+
 ## Access and retention
 
 The bucket enforces public-access prevention and uniform bucket-level access,

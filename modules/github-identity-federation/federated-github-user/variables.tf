@@ -32,4 +32,9 @@ variable "allowed-repositories" {
   type        = list(string)
   description = "A list of repositories to allow the federated user to access"
   sensitive   = false
+
+  validation {
+    condition     = length(distinct(var.allowed-repositories)) <= 1
+    error_message = "The preserved legacy IAM binding supports at most one distinct repository per account. Migrate the IAM resource layout before configuring multiple repositories."
+  }
 }
