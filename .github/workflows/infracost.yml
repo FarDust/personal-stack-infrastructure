@@ -16,7 +16,7 @@ jobs:
     steps:
 
       - name: Setup Infracost
-        uses: infracost/actions/setup@v2
+        uses: infracost/actions/setup@0d27b734c72a1abb0aba3e2c3f54e4982cbd2591
         # See https://github.com/infracost/actions/tree/master/setup for other inputs
         # If you can't use this action, see Docker images in https://infracost.io/cicd
         with:
@@ -24,9 +24,10 @@ jobs:
 
       # Checkout the base branch of the pull request (e.g. main/master).
       - name: Checkout base branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: '${{ github.event.pull_request.base.ref }}'
+          ref: '${{ github.event.pull_request.base.sha }}'
+          persist-credentials: false
 
       # Generate Infracost JSON file as the baseline.
       - name: Generate Infracost cost estimate baseline
@@ -37,15 +38,29 @@ jobs:
 
       # Checkout the current PR branch so we can create a diff.
       - name: Checkout PR branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: '${{ github.event.pull_request.head.sha }}'
+          persist-credentials: false
 
       # Generate an Infracost diff and save it to a JSON file.
       - name: Generate Infracost diff
         run: |
           infracost diff --path=${TF_ROOT} \
+                          --usage-file=infracost-usage.yml \
+                          --terraform-var='gpu_idle_lab_dvc_location=southamerica-west1' \
                           --format=json \
                           --compare-to=/tmp/infracost-base.json \
                           --out-file=/tmp/infracost.json
+
+      - name: Check projected monthly cost
+        run: |
+          jq -e '
+            (.totalMonthlyCost | tonumber) > 0 and
+            (.totalMonthlyCost | tonumber) < 30 and
+            (.summary.totalSupportedResources >= 1) and
+            ((.summary.unsupportedResourceCounts.google_storage_bucket // 0) == 0)
+          ' /tmp/infracost.json
 
       - name: Post Infracost comment
         run: |
