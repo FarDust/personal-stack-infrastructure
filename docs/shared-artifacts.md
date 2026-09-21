@@ -50,6 +50,12 @@ addresses and review IAM changes, rather than silently changing this baseline.
 
 ## Access and retention
 
+If the existing Terraform runtime lacks storage provisioning permission, use
+the separately reviewed [storage bootstrap](../bootstrap/storage/README.md).
+It grants creation-only project permission plus management restricted to the
+designated bucket; the main configuration remains responsible for the bucket
+and consumer access. Keep bootstrap credentials temporary and outside source.
+
 The bucket enforces public-access prevention and uniform bucket-level access,
 enables versioning, prevents Terraform destruction, and disables force-destroy.
 Approved identities are supplied through sensitive `artifact_bucket_writers`.
@@ -69,7 +75,13 @@ policy before adding lifecycle deletion.
 
 ## Projected monthly cost
 
-`infracost-usage.yml` records the illustrative monthly planning envelope:
+`infracost-usage.yml` describes initial provisioning: an empty bucket with no
+scheduled upload, migration, request, or download workload. Its initial recurring
+usage estimate is zero, not a forecast of future operation. One-off management
+requests can still incur small charges. This change does not move existing data.
+
+The separate `cost/active-example.yml` is a nonzero sensitivity example that
+checks price coverage, not an approved allocation or an account forecast:
 
 | Item | Quantity | Rate | Monthly USD |
 | --- | ---: | ---: | ---: |
@@ -91,15 +103,26 @@ with the IAM service pricing. HCP Terraform's incomplete estimate is not used as
 the cost gate. Both baseline and head use their checked-in usage model when one
 exists. Configure the CI secret `ARTIFACT_BUCKET_LOCATION` from the authoritative
 workspace location and verify that the exact-revision remote plan uses that same
-value. CI requires the expected bucket resource and the reviewed fixture total.
-Reassess the model and its CI gate together when pricing or usage changes.
+value. CI requires the expected bucket resource, complete supported-resource
+coverage, and a positive price for the separate populated example. It does not
+assert that one fixed dollar total is a realistic bill.
 
-CI compares modeled costs against the private `INFRA_MONTHLY_BUDGET` setting. This is a
-projection under explicit assumptions, not a hard spending limit or an actual
-billing-account total. Taxes, currency conversion, unexpected retained versions,
-other applications/projects, and usage above this envelope are not included.
-Account-wide remaining budget must be considered before provisioning or expanding
-usage; merging configuration is not evidence of an applied resource or paid usage.
+CI compares the proposed incremental model plus the private account baseline
+`INFRA_BASELINE_MONTHLY_FORECAST` against `INFRA_MONTHLY_BUDGET`.
+`INFRA_BILLING_PERIOD` must identify the current month. Refresh the private
+baseline from authorized billing evidence when reviewing deployment or usage
+changes; keep billing exports and account-specific observations outside this repo.
+The cost-admission function has synthetic regression cases for empty usage,
+remaining budget, excess spending, missing prices, incomplete coverage and stale
+periods. A forecast remains uncertain, is not an invoice, and is not a hard cap.
+
+Before onboarding data, replace initial-zero quantities with measured or bounded
+unique payloads, object counts, write/delete frequency, and downloads per client.
+DVC deduplicates identical content, but noncurrent generations and soft-deleted
+bytes remain billable. Same-region Google Cloud access and external clients have
+different transfer treatment. Include applicable retrieval, replication, taxes,
+and credit assumptions; do not multiply one egress rate across all routes.
+Existing tiered storage is not implicitly copied into this Standard bucket.
 
 Sources:
 
@@ -110,6 +133,7 @@ Sources:
 - <https://cloud.google.com/storage/docs/object-versioning>
 - <https://cloud.google.com/storage/docs/soft-delete>
 - <https://www.infracost.io/docs/features/usage_based_resources/>
+- <https://doc.dvc.org/user-guide/project-structure/internal-files>
 
 ## Verification and delivery
 

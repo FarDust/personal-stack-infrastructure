@@ -14,6 +14,8 @@ jobs:
       INFRACOST_ENABLE_CLOUD: true
       ARTIFACT_BUCKET_LOCATION: ${{ secrets.ARTIFACT_BUCKET_LOCATION }}
       INFRA_MONTHLY_BUDGET: ${{ secrets.INFRA_MONTHLY_BUDGET }}
+      INFRA_BASELINE_MONTHLY_FORECAST: ${{ secrets.INFRA_BASELINE_MONTHLY_FORECAST }}
+      INFRA_BILLING_PERIOD: ${{ secrets.INFRA_BILLING_PERIOD }}
 
     steps:
 
@@ -24,6 +26,7 @@ jobs:
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
           version: 0.10.45
+          currency: USD
 
       # Checkout the base branch of the pull request (e.g. main/master).
       - name: Checkout base branch
@@ -69,15 +72,38 @@ jobs:
 
       - name: Check projected monthly cost
         run: |
-          jq -e --argjson budget "${INFRA_MONTHLY_BUDGET}" '
-            (.totalMonthlyCost | tonumber) > 0 and
-            (.totalMonthlyCost | tonumber) < $budget and
-            (.totalMonthlyCost | tonumber) >= 14.39 and
-            (.totalMonthlyCost | tonumber) <= 14.41 and
-            (.summary.totalUnsupportedResources == 0) and
-            ([.projects[].breakdown.resources[]? | select(.name == "module.storage.google_storage_bucket.shared_artifacts")] | length) == 1 and
-            ((.summary.unsupportedResourceCounts.google_storage_bucket // 0) == 0)
-          ' /tmp/infracost-head.json
+          jq -L cost -e --argjson budget "${INFRA_MONTHLY_BUDGET}" \
+                --argjson baseline "${INFRA_BASELINE_MONTHLY_FORECAST}" \
+                --arg period "${INFRA_BILLING_PERIOD}" \
+                'include "budget"; within_budget($baseline; $budget; $period)' \
+                /tmp/infracost-head.json
+
+      - name: Test cost admission boundaries
+        run: |
+          jq -L cost -e --arg period "$(date -u +%Y-%m)" '
+            include "budget";
+            all(.[];
+              . as $case
+              | {
+                  totalMonthlyCost: $case.cost,
+                  currency: ($case.currency // "USD"),
+                  summary: {totalUnsupportedResources: $case.unsupported},
+                  projects: [{breakdown: {resources:
+                    (if $case.bucket then [{name: "module.storage.google_storage_bucket.shared_artifacts"}] else [] end)
+                  }}]
+                }
+              | within_budget(8; 10; (if $case.current_period then $period else "2000-01" end)) == $case.expected
+            )
+          ' cost/budget-tests.json
+
+      - name: Verify nonzero usage is priced
+        run: |
+          infracost breakdown --path=${TF_ROOT} \
+                          --usage-file=cost/active-example.yml \
+                          --terraform-var="artifact_bucket_location=${ARTIFACT_BUCKET_LOCATION}" \
+                          --format=json \
+                          --out-file=/tmp/infracost-example.json
+          jq -e '(.totalMonthlyCost | tonumber) > 0 and .summary.totalUnsupportedResources == 0' /tmp/infracost-example.json
 
       - name: Post Infracost comment
         run: |
