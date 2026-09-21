@@ -24,6 +24,18 @@ run "accept_valid_region" {
     condition     = nonsensitive(output.dvc_base_url) == "gs://example-private-artifacts/dvc"
     error_message = "The root module must expose the shared DVC namespace."
   }
+  assert {
+    condition     = nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_binding_count) == 1 && nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_member_count) == 0
+    error_message = "The root module must select the legacy IAM binding layout."
+  }
+  assert {
+    condition     = nonsensitive(module.github-identity-federation.federated-github-users["secrets"].federated-user.account_id) == "example-federated-user"
+    error_message = "The root module must preserve the legacy service-account name."
+  }
+  assert {
+    condition     = nonsensitive(module.github-identity-federation.owner_condition) == "attribute.repository_owner == \"example-owner\"\n" && issensitive(module.github-identity-federation.owner_condition)
+    error_message = "The root module must preserve the exact sensitive owner condition."
+  }
 }
 
 run "reject_invalid_region" {
