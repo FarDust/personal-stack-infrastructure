@@ -38,20 +38,47 @@ The root consumes the shared `github-identity-federation` module directly from
 This source pin is not evidence that a consumer apply has occurred. The source is available at
 <https://github.com/FarDust/terraform-infrastructure/tree/132e099a43d302b472863e110f11338833503eb6/modules/github-identity-federation>.
 
-The shared module defaults to modern additive IAM members. This consumer sets
-`legacy_mode = true` explicitly so existing resource addresses, the
-`-federated-user` account naming, and authoritative repository-scoped IAM
-bindings remain unchanged. Its required sensitive owner input produces the
-same exact trailing-newline condition and is exposed as a sensitive module
-output for composition verification. Binding/member counts and federated-user
-outputs allow tests to verify the selected compatibility mode without reading
-vendored implementation resources.
+This consumer uses the shared module's modern default: one additive IAM member
+per allowed repository, without authoritative role bindings. Multiple repositories
+are supported. The required sensitive owner condition retains its exact expression
+and trailing newline. Existing account names that do not end in `-fa` keep the
+`-federated-user` suffix; names already ending in `-fa` are used unchanged.
 
-The legacy binding layout accepts at most one distinct allowed repository per
-account. Validation rejects multiple repositories before planning because
-multiple authoritative bindings for the same role would otherwise overwrite
-one another. A future multi-repository migration must explicitly preserve state
-addresses and review IAM changes, rather than silently changing this baseline.
+The library's explicit legacy compatibility tests remain separate from the
+consumer's modern-default tests. Modern composition tests assert zero bindings,
+one member per repository, owner-condition sensitivity, and account naming.
+
+### One-time state adoption
+
+Existing authoritative bindings must be forgotten, not destroyed. Supply the
+sensitive `federation_member_imports` map privately with an operator alias mapped
+to `account_key`, `repository`, and the provider's existing-member import `id`.
+Routing keys appear in Terraform addresses; import IDs remain sensitive.
+New deployments use the empty default and create normal additive members.
+
+Before transferring ownership, record the current remote state version and live
+IAM policy, verify unchanged service-account naming, and finish source review/CI.
+A transitional full plan may show the old binding's deletion: never apply it.
+With auto-apply disabled and no active or confirmable stale run, initialize the
+correct cloud backend, dry-run the exact indexed `terraform state rm` address,
+require exactly one match, then remove that association using normal locking.
+Do not remove the grant through an IAM API or edit raw state JSON.
+
+Verify that only the binding association disappeared and the live policy stayed
+unchanged. A fresh full speculative plan, followed by the merged revision's normal
+plan, must show only the expected existing-member import, with no resource
+creation, value-changing update, replacement, or destruction. Importing an
+unmarked value into a sensitive configuration can show a metadata-only update;
+compare raw before/after values privately to distinguish it from an IAM change.
+Apply that reviewed import, clear
+the private import map, then verify modern state, identical live permissions,
+and a full zero-change plan. On failure, inspect the current state before retrying;
+do not blindly restore an older snapshot over subsequent writes.
+
+This explicit transfer is needed because the pinned library still declares its
+zero-instance compatibility binding resource. Terraform rejects `removed` or
+whole-resource `moved` declarations that conflict with that declaration. Exact
+deployed repository identifiers stay out of public migration HCL.
 
 ## Access and retention
 

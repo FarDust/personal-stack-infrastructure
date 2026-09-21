@@ -25,12 +25,12 @@ run "accept_valid_region" {
     error_message = "The root module must expose the shared DVC namespace."
   }
   assert {
-    condition     = nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_binding_count) == 1 && nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_member_count) == 0
-    error_message = "The root module must select the legacy IAM binding layout."
+    condition     = nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_binding_count) == 0 && nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_member_count) == 1
+    error_message = "The root module must use the shared module's modern IAM member default."
   }
   assert {
     condition     = nonsensitive(module.github-identity-federation.federated-github-users["secrets"].federated-user.account_id) == "example-federated-user"
-    error_message = "The root module must preserve the legacy service-account name."
+    error_message = "Switching IAM ownership must preserve the existing compatible account name."
   }
   assert {
     condition     = nonsensitive(module.github-identity-federation.owner_condition) == "attribute.repository_owner == \"example-owner\"\n" && issensitive(module.github-identity-federation.owner_condition)
@@ -44,4 +44,26 @@ run "reject_invalid_region" {
     artifact_bucket_location = "not-a-region"
   }
   expect_failures = [var.artifact_bucket_location]
+}
+
+run "modern_multiple_repositories_and_account_name" {
+  command = plan
+  variables {
+    federated_github_users = {
+      secrets = {
+        name                 = "example-fa"
+        display_name         = "Example"
+        description          = "validates modern composition"
+        allowed-repositories = ["example-owner/first", "example-owner/second"]
+      }
+    }
+  }
+  assert {
+    condition     = nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_binding_count) == 0 && nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_member_count) == 2
+    error_message = "Each repository must use its own additive IAM member, without authoritative bindings."
+  }
+  assert {
+    condition     = nonsensitive(module.github-identity-federation.federated-github-users["secrets"].federated-user.account_id) == "example-fa"
+    error_message = "Modern account names must not receive the legacy suffix."
+  }
 }
