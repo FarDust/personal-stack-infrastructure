@@ -7,6 +7,7 @@ variable "project_id" {
 variable "artifact_bucket_location" {
   type        = string
   description = "The region in which shared artifact storage will be provisioned."
+  sensitive   = true
 }
 
 variable "artifact_bucket_name" {

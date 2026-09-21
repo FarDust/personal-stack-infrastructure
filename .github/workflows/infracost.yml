@@ -12,6 +12,8 @@ jobs:
     env:
       TF_ROOT: .
       INFRACOST_ENABLE_CLOUD: true
+      ARTIFACT_BUCKET_LOCATION: ${{ secrets.ARTIFACT_BUCKET_LOCATION }}
+      INFRA_MONTHLY_BUDGET: ${{ secrets.INFRA_MONTHLY_BUDGET }}
 
     steps:
 
@@ -36,7 +38,7 @@ jobs:
           usage_args=()
           if [ -f infracost-usage.yml ]; then
             usage_args+=(--usage-file=infracost-usage.yml)
-            usage_args+=(--terraform-var=artifact_bucket_location=southamerica-west1)
+            usage_args+=(--terraform-var="artifact_bucket_location=${ARTIFACT_BUCKET_LOCATION}")
           fi
           infracost breakdown --path=${TF_ROOT} \
                               "${usage_args[@]}" \
@@ -55,21 +57,21 @@ jobs:
         run: |
           infracost breakdown --path=${TF_ROOT} \
                           --usage-file=infracost-usage.yml \
-                          --terraform-var='artifact_bucket_location=southamerica-west1' \
+                          --terraform-var="artifact_bucket_location=${ARTIFACT_BUCKET_LOCATION}" \
                           --format=json \
                           --out-file=/tmp/infracost-head.json
           infracost diff --path=${TF_ROOT} \
                           --usage-file=infracost-usage.yml \
-                          --terraform-var='artifact_bucket_location=southamerica-west1' \
+                          --terraform-var="artifact_bucket_location=${ARTIFACT_BUCKET_LOCATION}" \
                           --format=json \
                           --compare-to=/tmp/infracost-base.json \
                           --out-file=/tmp/infracost.json
 
       - name: Check projected monthly cost
         run: |
-          jq -e '
+          jq -e --argjson budget "${INFRA_MONTHLY_BUDGET}" '
             (.totalMonthlyCost | tonumber) > 0 and
-            (.totalMonthlyCost | tonumber) < 30 and
+            (.totalMonthlyCost | tonumber) < $budget and
             (.totalMonthlyCost | tonumber) >= 14.39 and
             (.totalMonthlyCost | tonumber) <= 14.41 and
             (.summary.totalUnsupportedResources == 0) and

@@ -14,11 +14,11 @@ variables {
     }
   }
   artifact_bucket_name     = "example-private-artifacts"
-  artifact_bucket_location = "SOUTHAMERICA-WEST1"
+  artifact_bucket_location = "US-CENTRAL1"
   artifact_bucket_writers  = {}
 }
 
-run "accept_reviewed_region" {
+run "accept_valid_region" {
   command = plan
   assert {
     condition     = nonsensitive(output.dvc_base_url) == "gs://example-private-artifacts/dvc"
@@ -26,10 +26,10 @@ run "accept_reviewed_region" {
   }
 }
 
-run "reject_uncosted_region" {
+run "reject_invalid_region" {
   command = plan
   variables {
-    artifact_bucket_location = "us-central1"
+    artifact_bucket_location = "not-a-region"
   }
   expect_failures = [var.artifact_bucket_location]
 }

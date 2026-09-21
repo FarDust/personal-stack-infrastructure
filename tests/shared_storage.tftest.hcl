@@ -3,7 +3,7 @@ mock_provider "google" {}
 variables {
   project_id               = "example-project"
   artifact_bucket_name     = "example-private-artifacts"
-  artifact_bucket_location = "southamerica-west1"
+  artifact_bucket_location = "us-central1"
   artifact_bucket_writers = {
     agent   = "user:operator@example.com"
     cluster = "serviceAccount:storage@example-project.iam.gserviceaccount.com"
