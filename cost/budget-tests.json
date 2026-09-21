@@ -1,0 +1,12 @@
+[
+  {"name": "empty bucket with remaining budget", "cost": "0", "unsupported": 0, "bucket": true, "current_period": true, "expected": true},
+  {"name": "exact remaining budget", "cost": "2", "unsupported": 0, "bucket": true, "current_period": true, "expected": true},
+  {"name": "increment exceeds remaining budget", "cost": "3", "unsupported": 0, "bucket": true, "current_period": true, "expected": false},
+  {"name": "missing price", "cost": null, "unsupported": 0, "bucket": true, "current_period": true, "expected": false},
+  {"name": "invalid price", "cost": "unknown", "unsupported": 0, "bucket": true, "current_period": true, "expected": false},
+  {"name": "negative increment", "cost": "-1", "unsupported": 0, "bucket": true, "current_period": true, "expected": false},
+  {"name": "unsupported resources", "cost": "0", "unsupported": 1, "bucket": true, "current_period": true, "expected": false},
+  {"name": "missing bucket coverage", "cost": "0", "unsupported": 0, "bucket": false, "current_period": true, "expected": false},
+  {"name": "stale billing period", "cost": "0", "unsupported": 0, "bucket": true, "current_period": false, "expected": false},
+  {"name": "currency mismatch", "cost": "0", "currency": "EUR", "unsupported": 0, "bucket": true, "current_period": true, "expected": false}
+]
