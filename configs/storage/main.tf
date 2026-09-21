@@ -1,7 +1,7 @@
-resource "google_storage_bucket" "gpu_idle_lab_dvc" {
+resource "google_storage_bucket" "shared_artifacts" {
   project  = var.project_id
-  name     = var.gpu_idle_lab_dvc_bucket_name
-  location = var.gcp_region
+  name     = var.artifact_bucket_name
+  location = var.artifact_bucket_location
 
   lifecycle {
     prevent_destroy = true
@@ -16,7 +16,15 @@ resource "google_storage_bucket" "gpu_idle_lab_dvc" {
   }
 
   labels = {
-    app     = "gpu-idle-lab"
-    purpose = "dvc-artifacts"
+    app     = "shared-storage"
+    purpose = "shared-artifacts"
   }
+}
+
+resource "google_storage_bucket_iam_member" "artifact_writer" {
+  # Only stable, non-secret aliases are exposed as resource keys, never identities.
+  for_each = nonsensitive(toset(keys(var.artifact_bucket_writers)))
+  bucket   = google_storage_bucket.shared_artifacts.name
+  role     = "roles/storage.objectUser"
+  member   = var.artifact_bucket_writers[each.key]
 }
