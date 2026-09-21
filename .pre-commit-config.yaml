@@ -6,6 +6,12 @@ repos:
         entry: terraform fmt -check
         language: system
         files: \.tf$
+      - id: terraform-init
+        name: Terraform initialize
+        entry: terraform init -backend=false -input=false -lockfile=readonly
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: terraform-validate
         name: Terraform validate
         entry: terraform validate -no-color
