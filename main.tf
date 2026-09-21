@@ -1,10 +1,11 @@
 
 module "github-identity-federation" {
-  source = "git@github.com:FarDust/terraform-infrastructure.git//modules/github-identity-federation?ref=752db911c1d9cc8d1ce4a665f5d5a1791796bd5d"
-  project-id = var.project_id
-  federated-github-users = var.federated_github_users
+  source                   = "./modules/github-identity-federation"
+  github_repository_owner  = var.github_repository_owner
+  project-id               = var.project_id
+  federated-github-users   = var.federated_github_users
   landing-identity-pool-id = var.identity_pool_id
-  identity-provider-id = var.identity_provider_id
+  identity-provider-id     = var.identity_provider_id
 }
 
 resource "google_project_iam_member" "github-actions-artifacts-binding" {
@@ -12,6 +13,14 @@ resource "google_project_iam_member" "github-actions-artifacts-binding" {
     module.github-identity-federation
   ]
   project = var.project_id
-  role = "roles/secretmanager.secretAccessor"
-  member = "serviceAccount:${module.github-identity-federation.federated-github-users["secrets"].federated-user.email}"
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${module.github-identity-federation.federated-github-users["secrets"].federated-user.email}"
+}
+
+module "storage" {
+  source                   = "./configs/storage"
+  project_id               = var.project_id
+  artifact_bucket_location = var.artifact_bucket_location
+  artifact_bucket_name     = var.artifact_bucket_name
+  artifact_bucket_writers  = var.artifact_bucket_writers
 }

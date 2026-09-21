@@ -37,4 +37,12 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Local credentials and generated plan/cost artifacts
+.env
+.env.*
+credentials*.json
+*.tfplan
+*.tfplan.json
+.infracost/
+
 # End of https://www.toptal.com/developers/gitignore/api/terraform

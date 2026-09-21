@@ -1,0 +1,12 @@
+version: 0.1
+
+# Initial provisioning only: this change creates an empty bucket and no uploads,
+# data migration, scheduled requests, or download workload. Update this model
+# before onboarding data; zero initial usage is not a promise of free operation.
+resource_usage:
+  module.storage.google_storage_bucket.shared_artifacts:
+    storage_gb: 0
+    monthly_class_a_operations: 0
+    monthly_class_b_operations: 0
+    monthly_egress_data_transfer_gb:
+      worldwide: 0
