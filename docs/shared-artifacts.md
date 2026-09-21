@@ -8,11 +8,11 @@ The bucket's name is supplied by the sensitive Terraform Cloud variable
 The independently configurable `artifact_bucket_location` selects the bucket
 region without changing the provider's existing `gcp_region` setting.
 
-The selected workspace location is `southamerica-west1` (Santiago), near the
-artifact-consuming workload. This is a new bucket, not a migration of existing
-data. The region is an explicit workspace decision, not a claim that the closest
-region is always cheapest. Bucket names are explicit deployment inputs; no
-broader bucket naming formula was found in the existing infrastructure sources.
+Choose deployment locations using workload locality, service availability, and
+cost. The public cost fixture models one regional storage scenario; it is not a
+record of deployed resources, personal location, or measured usage. Actual
+deployment identifiers and operational receipts belong in private configuration
+and records, not in this document.
 
 The bucket is shared by agent and cluster workloads, not owned by one DVC project.
 Use `gs://<artifact_bucket_name>/dvc/<project-slug>/` for each DVC project.
@@ -58,7 +58,7 @@ not project-wide storage administration or public access. Only non-secret map
 aliases are exposed as resource keys; principal values remain sensitive.
 DVC uses existing approved Application Default Credentials or managed cluster
 credentials. No new static service-account key is created or distributed. The
-existing GitHub Secret Manager account is not implicitly authorized for storage,
+existing federation accounts are not implicitly authorized for storage,
 and these CI workflows do not upload DVC data. Verify each consuming identity's
 access after provisioning; IAM configuration is not a credential-distribution mechanism.
 
@@ -73,34 +73,31 @@ policy before adding lifecycle deletion.
 
 | Item | Quantity | Rate | Monthly USD |
 | --- | ---: | ---: | ---: |
-| Standard storage in Santiago | 50 GiB | 0.03/GiB-month | 1.50 |
+| Illustrative regional Standard storage | 50 GiB | 0.03/GiB-month | 1.50 |
 | Class A operations | 100,000 | 0.05/10,000 | 0.50 |
 | Class B operations | 1,000,000 | 0.004/10,000 | 0.40 |
 | Worldwide egress modeled for artifact downloads | 100 GiB | 0.12/GiB | 12.00 |
 | Total | | | **14.40** |
 
-The Google Cloud Billing catalog and Infracost confirmed Santiago's storage
-price. Catalog SKU description `Standard Storage Santiago` uses `GiBy.mo`, with
-USD `units=0`, `nanos=30000000`, effective 2026-09-20T07:00:00Z. Infracost 0.10.45
-independently reproduces the table. Iowa regional Standard storage is
-0.02/GiB-month before applicable free tier, so locality costs approximately
-0.50/month extra for this stored volume.
-No free-tier discount is assumed for Santiago.
+These quantities are a reproducible pricing fixture, not observed consumption.
+Use the Cloud Billing catalog and Infracost to verify rates for the configured
+region; keep deployment-specific pricing receipts private. This example assumes
+no free-tier discount. Reassess quantities and rates as workloads change.
 
 The repository's existing service-account/IAM resources add no recurring IAM
 service charge. Infracost 0.10.45 classifies the IAM resources as no-price
 resources and reports no unsupported resources for this configuration, consistent
 with the IAM service pricing. HCP Terraform's incomplete estimate is not used as
 the cost gate. Both baseline and head use their checked-in usage model when one
-exists. Region validation binds deployment to the costed Santiago region; CI
-also requires the expected bucket resource and the reviewed 14.40 USD projection.
+exists. Configure the CI secret `ARTIFACT_BUCKET_LOCATION` from the authoritative
+workspace location and verify that the exact-revision remote plan uses that same
+value. CI requires the expected bucket resource and the reviewed fixture total.
 Reassess the model and its CI gate together when pricing or usage changes.
 
-The modeled repository cost is below the 30 USD/month ceiling. This is a
+CI compares modeled costs against the private `INFRA_MONTHLY_BUDGET` setting. This is a
 projection under explicit assumptions, not a hard spending limit or an actual
 billing-account total. Taxes, currency conversion, unexpected retained versions,
 other applications/projects, and usage above this envelope are not included.
-No readable billing export was available to establish aggregate actual spend.
 Account-wide remaining budget must be considered before provisioning or expanding
 usage; merging configuration is not evidence of an applied resource or paid usage.
 
@@ -119,7 +116,7 @@ Sources:
 The committed `tests/*.tftest.hcl` regression suite uses a mocked Google provider
 and synthetic identities. It exercises owner-condition preservation and
 sensitivity, invalid-owner rejection, legacy binding conflict prevention,
-reviewed-region validation, private shared storage, DVC namespace outputs,
+regional-input validation, private shared storage, DVC namespace outputs,
 scoped writer aliases, and rejection of public principals. Run `terraform test
 -no-color` after initialization; the suite runs in pre-commit and GitHub Actions.
 Mocked tests make no Google Cloud changes and do not replace the full remote plan.
