@@ -41,14 +41,26 @@ variable "federated_github_users" {
   sensitive   = false
 }
 
-variable "gpu_idle_lab_dvc_bucket_name" {
+variable "artifact_bucket_name" {
   type        = string
-  description = "The private GCS bucket name for GPU Idle Lab DVC artifacts."
+  description = "The shared private artifact bucket name supplied by Terraform Cloud."
   sensitive   = true
 }
 
-variable "gpu_idle_lab_dvc_location" {
+variable "artifact_bucket_location" {
   type        = string
-  description = "DVC bucket location supplied by Terraform Cloud, independently of the provider region."
+  description = "Shared artifact bucket location supplied by Terraform Cloud."
+  nullable    = false
+
+  validation {
+    condition     = lower(var.artifact_bucket_location) == "southamerica-west1"
+    error_message = "The reviewed shared-artifact cost model requires the Santiago region southamerica-west1. Review region and cost together before changing this contract."
+  }
+}
+
+variable "artifact_bucket_writers" {
+  type        = map(string)
+  description = "Non-secret role aliases mapped to approved IAM user, group or service-account principals. Values are supplied by Terraform Cloud."
+  sensitive   = true
   nullable    = false
 }

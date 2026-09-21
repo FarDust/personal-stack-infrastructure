@@ -18,8 +18,9 @@ resource "google_project_iam_member" "github-actions-artifacts-binding" {
 }
 
 module "storage" {
-  source                       = "./configs/storage"
-  project_id                   = var.project_id
-  gcp_region                   = var.gpu_idle_lab_dvc_location
-  gpu_idle_lab_dvc_bucket_name = var.gpu_idle_lab_dvc_bucket_name
+  source                   = "./configs/storage"
+  project_id               = var.project_id
+  artifact_bucket_location = var.artifact_bucket_location
+  artifact_bucket_name     = var.artifact_bucket_name
+  artifact_bucket_writers  = var.artifact_bucket_writers
 }
