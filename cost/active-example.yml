@@ -1,0 +1,11 @@
+version: 0.1
+
+# Synthetic sensitivity example for price coverage, not approved usage,
+# measured consumption, or a forecast. All retained generations count.
+resource_usage:
+  module.storage.google_storage_bucket.shared_artifacts:
+    storage_gb: 50
+    monthly_class_a_operations: 100000
+    monthly_class_b_operations: 1000000
+    monthly_egress_data_transfer_gb:
+      worldwide: 100
