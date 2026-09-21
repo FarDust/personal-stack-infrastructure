@@ -21,6 +21,7 @@ jobs:
         # If you can't use this action, see Docker images in https://infracost.io/cicd
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
+          version: 0.10.45
 
       # Checkout the base branch of the pull request (e.g. main/master).
       - name: Checkout base branch
@@ -32,7 +33,13 @@ jobs:
       # Generate Infracost JSON file as the baseline.
       - name: Generate Infracost cost estimate baseline
         run: |
+          usage_args=()
+          if [ -f infracost-usage.yml ]; then
+            usage_args+=(--usage-file=infracost-usage.yml)
+            usage_args+=(--terraform-var=artifact_bucket_location=southamerica-west1)
+          fi
           infracost breakdown --path=${TF_ROOT} \
+                              "${usage_args[@]}" \
                               --format=json \
                               --out-file=/tmp/infracost-base.json
 
@@ -46,9 +53,14 @@ jobs:
       # Generate an Infracost diff and save it to a JSON file.
       - name: Generate Infracost diff
         run: |
+          infracost breakdown --path=${TF_ROOT} \
+                          --usage-file=infracost-usage.yml \
+                          --terraform-var='artifact_bucket_location=southamerica-west1' \
+                          --format=json \
+                          --out-file=/tmp/infracost-head.json
           infracost diff --path=${TF_ROOT} \
                           --usage-file=infracost-usage.yml \
-                          --terraform-var='gpu_idle_lab_dvc_location=southamerica-west1' \
+                          --terraform-var='artifact_bucket_location=southamerica-west1' \
                           --format=json \
                           --compare-to=/tmp/infracost-base.json \
                           --out-file=/tmp/infracost.json
@@ -58,9 +70,12 @@ jobs:
           jq -e '
             (.totalMonthlyCost | tonumber) > 0 and
             (.totalMonthlyCost | tonumber) < 30 and
-            (.summary.totalSupportedResources >= 1) and
+            (.totalMonthlyCost | tonumber) >= 14.39 and
+            (.totalMonthlyCost | tonumber) <= 14.41 and
+            (.summary.totalUnsupportedResources == 0) and
+            ([.projects[].breakdown.resources[]? | select(.name == "module.storage.google_storage_bucket.shared_artifacts")] | length) == 1 and
             ((.summary.unsupportedResourceCounts.google_storage_bucket // 0) == 0)
-          ' /tmp/infracost.json
+          ' /tmp/infracost-head.json
 
       - name: Post Infracost comment
         run: |

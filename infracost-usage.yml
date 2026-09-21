@@ -3,9 +3,9 @@ version: 0.1
 # Illustrative monthly planning envelope, not an enforced quota or actual usage.
 # Storage includes live objects, noncurrent versions and soft-deleted data.
 resource_usage:
-  module.storage.google_storage_bucket.gpu_idle_lab_dvc:
-    storage_gb: 5
-    monthly_class_a_operations: 10000
-    monthly_class_b_operations: 100000
+  module.storage.google_storage_bucket.shared_artifacts:
+    storage_gb: 50
+    monthly_class_a_operations: 100000
+    monthly_class_b_operations: 1000000
     monthly_egress_data_transfer_gb:
-      worldwide: 20
+      worldwide: 100
