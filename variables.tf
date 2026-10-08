@@ -65,3 +65,34 @@ variable "artifact_bucket_writers" {
   sensitive   = true
   nullable    = false
 }
+
+variable "workspace_backup_folder_paths" {
+  type        = map(string)
+  description = "Sensitive aliases mapped to the two private workspace backup folder paths, supplied by Terraform Cloud."
+  default     = {}
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition = length(var.workspace_backup_folder_paths) == 0 || (
+      length(var.workspace_backup_folder_paths) == 2 &&
+      alltrue([
+        for path in values(var.workspace_backup_folder_paths) :
+        can(regex("^backups/workspaces/[a-z0-9][a-z0-9-]*/$", path))
+      ])
+    )
+    error_message = "Configure exactly two lowercase workspace backup paths under backups/workspaces/, each with a trailing slash."
+  }
+}
+
+variable "workspace_backup_writer_service_account_id" {
+  type        = string
+  description = "The generic account ID for the workspace-backup writer identity."
+  default     = "workspace-backup-writer"
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.workspace_backup_writer_service_account_id))
+    error_message = "Use a 6-30 character lowercase service-account ID with letters, numbers, and hyphens."
+  }
+}

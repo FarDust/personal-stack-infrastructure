@@ -25,3 +25,11 @@ module "storage" {
   artifact_bucket_name     = var.artifact_bucket_name
   artifact_bucket_writers  = var.artifact_bucket_writers
 }
+
+module "workspace_backup_storage" {
+  source                        = "./configs/workspace-backup-storage"
+  project_id                    = var.project_id
+  artifact_bucket_name          = var.artifact_bucket_name
+  workspace_backup_folder_paths = var.workspace_backup_folder_paths
+  writer_service_account_id     = var.workspace_backup_writer_service_account_id
+}
