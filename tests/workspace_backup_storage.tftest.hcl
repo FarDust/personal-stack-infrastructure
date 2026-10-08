@@ -52,3 +52,20 @@ run "rejects_unscoped_or_incomplete_workspace_backup_paths" {
 
   expect_failures = [var.workspace_backup_folder_paths]
 }
+
+run "rejects_duplicate_workspace_backup_paths" {
+  command = plan
+
+  module {
+    source = "./configs/workspace-backup-storage"
+  }
+
+  variables {
+    workspace_backup_folder_paths = {
+      first  = "backups/workspaces/example-a/"
+      second = "backups/workspaces/example-a/"
+    }
+  }
+
+  expect_failures = [var.workspace_backup_folder_paths]
+}

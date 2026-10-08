@@ -26,6 +26,7 @@ This repository manages infrastructure with Terraform Cloud. Read this file befo
 - Use the official HashiCorp Terraform MCP server for permitted discovery of registries, projects, workspaces, variables, runs, plans, costs, logs, and policy results.
 - Use the MCP workflow to inspect the current state, create or review speculative plans, and apply an approved Terraform Cloud plan when authorized.
 - Keep credentials in approved secret storage. Never place credentials or sensitive values in repository files, plans, logs, or handoff notes.
+- Treat Terraform plans and plan JSON as sensitive artifacts: restrict access, avoid committing or disclosing them, and prefer ephemeral or write-only inputs when values must not persist.
 
 ## Objective-Based Plan Evaluation
 

@@ -22,12 +22,13 @@ variable "workspace_backup_folder_paths" {
   validation {
     condition = length(var.workspace_backup_folder_paths) == 0 || (
       length(var.workspace_backup_folder_paths) == 2 &&
+      length(toset(values(var.workspace_backup_folder_paths))) == 2 &&
       alltrue([
         for path in values(var.workspace_backup_folder_paths) :
         can(regex("^backups/workspaces/[a-z0-9][a-z0-9-]*/$", path))
       ])
     )
-    error_message = "Configure exactly two lowercase workspace backup paths under backups/workspaces/, each with a trailing slash."
+    error_message = "Configure exactly two distinct lowercase workspace backup paths under backups/workspaces/, each with a trailing slash."
   }
 }
 

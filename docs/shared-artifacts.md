@@ -132,11 +132,12 @@ The repository's service-account, IAM and managed-folder access resources add no
 recurring service charge. Infracost can classify those identity/access-control
 types as either no-price or unsupported resources; the public fixture allowlists
 only those known no-monthly-charge resource types while still requiring the
-expected bucket resource and a positive price for the populated example. HCP
-Terraform's incomplete estimate is not used as the cost gate. Both baseline and
-head use their checked-in usage model when one exists. Public PR CI uses a
-synthetic region and usage inputs only. This checks pricing coverage, not the
-actual deployment budget or location, and it does not assert a realistic bill.
+expected bucket resource and a positive price for the populated example under
+the same allowlist. HCP Terraform's incomplete estimate is not used as the cost
+gate. Both baseline and head use their checked-in usage model when one exists.
+Public PR CI uses a synthetic region and usage inputs only. This checks pricing
+coverage, not the actual deployment budget or location, and it does not assert a
+realistic bill.
 
 Before deployment, a trusted operator evaluates `cost/budget.jq` from the
 reviewed immutable revision using the actual workspace location, incremental
