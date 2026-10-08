@@ -32,7 +32,7 @@ run "workspace_backup_writer_is_folder_scoped" {
   }
 
   assert {
-    condition     = google_project_iam_custom_role.workspace_backup_lock_deleter[0].permissions == toset(["storage.objects.delete"]) && alltrue([for grant in values(google_storage_bucket_iam_member.workspace_backup_lock_deleter) : startswith(grant.condition[0].expression, "resource.type == \"storage.googleapis.com/Object\" && resource.name.startsWith(\"projects/_/buckets/example-private-artifacts/objects/backups/workspaces/") && endswith(grant.condition[0].expression, "/locks/\")")])
+    condition     = google_project_iam_custom_role.workspace_backup_lock_deleter[0].permissions == toset(["storage.objects.delete"]) && alltrue([for grant in values(google_project_iam_member.workspace_backup_lock_deleter) : startswith(grant.condition[0].expression, "resource.type == \"storage.googleapis.com/Object\" && resource.name.startsWith(\"projects/_/buckets/example-private-artifacts/objects/backups/workspaces/") && endswith(grant.condition[0].expression, "/locks/\")")])
     error_message = "Only the custom delete permission may be granted, and only to Restic lock prefixes."
   }
 }
