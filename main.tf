@@ -37,7 +37,6 @@ module "workspace_backup_storage" {
 module "cluster_artifact_registry" {
   source                                  = "./configs/artifact-registry"
   project_id                              = var.project_id
-  terraform_executor                      = var.terraform_executor
   cluster_artifact_registry_location      = var.cluster_artifact_registry_location
   cluster_artifact_registry_repository_id = var.cluster_artifact_registry_repository_id
   cluster_artifact_registry_writers       = var.cluster_artifact_registry_writers
