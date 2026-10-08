@@ -70,9 +70,19 @@ jobs:
       - name: Check public cost fixture coverage
         run: |
           jq -e '
+            [
+              "google_iam_workload_identity_pool",
+              "google_iam_workload_identity_pool_provider",
+              "google_project_iam_custom_role",
+              "google_service_account",
+              "google_storage_bucket_iam_member",
+              "google_storage_managed_folder",
+              "google_storage_managed_folder_iam_member"
+            ] as $known_no_monthly_charge_types |
+            (.summary.unsupportedResourceCounts // {}) as $unsupported_counts |
             .currency == "USD" and
             (.totalMonthlyCost | tonumber) >= 0 and
-            .summary.totalUnsupportedResources == 0 and
+            (($unsupported_counts | keys - $known_no_monthly_charge_types) | length) == 0 and
             ([.projects[].breakdown.resources[]? | select(.name == "module.storage.google_storage_bucket.shared_artifacts")] | length) == 1
           ' /tmp/infracost-head.json
 
