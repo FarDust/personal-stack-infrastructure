@@ -9,3 +9,15 @@ output "dvc_base_url" {
   value       = module.storage.dvc_base_url
   sensitive   = true
 }
+
+output "workspace_backup_writer_service_account" {
+  description = "The service-account principal used by the externally managed workspace-backup runner."
+  value       = module.workspace_backup_storage.writer_service_account_email
+  sensitive   = true
+}
+
+output "workspace_backup_managed_folder_paths" {
+  description = "The private managed-folder paths reserved for workspace backups."
+  value       = module.workspace_backup_storage.managed_folder_paths
+  sensitive   = true
+}

@@ -128,15 +128,16 @@ Use the Cloud Billing catalog and Infracost to verify rates for the configured
 region; keep deployment-specific pricing receipts private. This example assumes
 no free-tier discount. Reassess quantities and rates as workloads change.
 
-The repository's existing service-account/IAM resources add no recurring IAM
-service charge. Infracost 0.10.45 classifies the IAM resources as no-price
-resources and reports no unsupported resources for this configuration, consistent
-with the IAM service pricing. HCP Terraform's incomplete estimate is not used as
-the cost gate. Both baseline and head use their checked-in usage model when one
-exists. Public PR CI uses a synthetic region and usage inputs only. It requires
-the expected bucket resource, complete supported-resource coverage, and a
-positive price for the populated example. This checks pricing coverage, not the
-actual deployment budget or location, and it does not assert a realistic bill.
+The repository's service-account, IAM and managed-folder access resources add no
+recurring service charge. Infracost can classify those identity/access-control
+types as either no-price or unsupported resources; the public fixture allowlists
+only those known no-monthly-charge resource types while still requiring the
+expected bucket resource and a positive price for the populated example under
+the same allowlist. HCP Terraform's incomplete estimate is not used as the cost
+gate. Both baseline and head use their checked-in usage model when one exists.
+Public PR CI uses a synthetic region and usage inputs only. This checks pricing
+coverage, not the actual deployment budget or location, and it does not assert a
+realistic bill.
 
 Before deployment, a trusted operator evaluates `cost/budget.jq` from the
 reviewed immutable revision using the actual workspace location, incremental
