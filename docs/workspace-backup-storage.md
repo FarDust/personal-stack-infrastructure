@@ -6,7 +6,7 @@
 
 - `workspace_backup_folder_paths` contains exactly two values under `backups/workspaces/`, with a trailing slash.
 - The writer receives `roles/storage.objectViewer` and `roles/storage.objectCreator` on each managed folder.
-- A project custom role grants only `storage.objects.delete`; conditional bucket bindings restrict it to each folder's `locks/` prefix.
+- A project custom role grants only `storage.objects.delete`; conditional project bindings restrict it to each folder's `locks/` prefix.
 - The module never creates a service-account key. Key custody and runner configuration remain external to Terraform state.
 
 ## Operating Gates

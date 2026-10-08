@@ -50,12 +50,12 @@ resource "google_storage_managed_folder_iam_member" "workspace_backup_creator" {
   member         = "serviceAccount:${google_service_account.workspace_backup_writer[0].email}"
 }
 
-resource "google_storage_bucket_iam_member" "workspace_backup_lock_deleter" {
+resource "google_project_iam_member" "workspace_backup_lock_deleter" {
   for_each = google_storage_managed_folder.workspace_backup
 
-  bucket = var.artifact_bucket_name
-  role   = google_project_iam_custom_role.workspace_backup_lock_deleter[0].name
-  member = "serviceAccount:${google_service_account.workspace_backup_writer[0].email}"
+  project = var.project_id
+  role    = google_project_iam_custom_role.workspace_backup_lock_deleter[0].name
+  member  = "serviceAccount:${google_service_account.workspace_backup_writer[0].email}"
 
   condition {
     title       = "workspace_backup_lock_delete_${each.key}"
