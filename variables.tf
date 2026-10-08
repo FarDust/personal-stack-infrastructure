@@ -18,6 +18,17 @@ variable "project_id" {
   sensitive   = true
 }
 
+variable "terraform_executor" {
+  type        = string
+  description = "Existing Terraform runtime service-account principal supplied by Terraform Cloud."
+  sensitive   = true
+
+  validation {
+    condition     = can(regex("^serviceAccount:[^\\s@]+@[^\\s@]+\\.iam\\.gserviceaccount\\.com$", var.terraform_executor))
+    error_message = "Supply an explicit service-account principal for the Terraform runtime."
+  }
+}
+
 variable "identity_pool_id" {
   type        = string
   description = "The ID of the Identity pool."

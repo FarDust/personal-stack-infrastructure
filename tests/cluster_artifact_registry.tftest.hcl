@@ -1,7 +1,8 @@
 mock_provider "google" {}
 
 variables {
-  project_id = "example-project"
+  project_id         = "example-project"
+  terraform_executor = "serviceAccount:terraform-executor@example-project.iam.gserviceaccount.com"
   cluster_artifact_registry_writers = {
     publisher = "serviceAccount:publisher@example-project.iam.gserviceaccount.com"
   }
@@ -31,6 +32,11 @@ run "private_cluster_image_repository" {
   assert {
     condition     = google_artifact_registry_repository.cluster_internal_images.location == "southamerica-west1"
     error_message = "The internal cluster image repository must use the Santiago region."
+  }
+
+  assert {
+    condition     = google_project_iam_member.terraform_executor_artifact_registry_admin.project == "example-project" && google_project_iam_member.terraform_executor_artifact_registry_admin.role == "roles/artifactregistry.admin" && nonsensitive(google_project_iam_member.terraform_executor_artifact_registry_admin.member) == "serviceAccount:terraform-executor@example-project.iam.gserviceaccount.com" && issensitive(google_project_iam_member.terraform_executor_artifact_registry_admin.member)
+    error_message = "The Terraform executor must receive a sensitive additive project-level Artifact Registry admin grant."
   }
 
   assert {
@@ -64,4 +70,15 @@ run "reject_all_authenticated_reader" {
     cluster_artifact_registry_readers = { public = "allAuthenticatedUsers" }
   }
   expect_failures = [var.cluster_artifact_registry_readers]
+}
+
+run "reject_public_terraform_executor" {
+  command = plan
+  module {
+    source = "./configs/artifact-registry"
+  }
+  variables {
+    terraform_executor = "allUsers"
+  }
+  expect_failures = [var.terraform_executor]
 }

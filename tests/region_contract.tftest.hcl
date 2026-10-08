@@ -3,6 +3,7 @@ mock_provider "google" {}
 variables {
   github_repository_owner = "example-owner"
   project_id              = "example-project"
+  terraform_executor      = "serviceAccount:terraform-executor@example-project.iam.gserviceaccount.com"
   identity_pool_id        = "example-pool"
   identity_provider_id    = "example-provider"
   federated_github_users = {

@@ -4,6 +4,17 @@ variable "project_id" {
   sensitive   = true
 }
 
+variable "terraform_executor" {
+  type        = string
+  description = "Existing Terraform runtime service-account principal."
+  sensitive   = true
+
+  validation {
+    condition     = can(regex("^serviceAccount:[^\\s@]+@[^\\s@]+\\.iam\\.gserviceaccount\\.com$", var.terraform_executor))
+    error_message = "Supply an explicit service-account principal for the Terraform runtime."
+  }
+}
+
 variable "cluster_artifact_registry_location" {
   type        = string
   description = "Artifact Registry location for private cluster Docker images."
