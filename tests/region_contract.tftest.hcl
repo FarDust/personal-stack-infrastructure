@@ -16,6 +16,12 @@ variables {
   artifact_bucket_name     = "example-private-artifacts"
   artifact_bucket_location = "US-CENTRAL1"
   artifact_bucket_writers  = {}
+  cluster_artifact_registry_writers = {
+    publisher = "serviceAccount:publisher@example-project.iam.gserviceaccount.com"
+  }
+  cluster_artifact_registry_readers = {
+    cluster = "serviceAccount:cluster@example-project.iam.gserviceaccount.com"
+  }
 }
 
 run "accept_valid_region" {
@@ -35,6 +41,10 @@ run "accept_valid_region" {
   assert {
     condition     = nonsensitive(module.github-identity-federation.owner_condition) == "attribute.repository_owner == \"example-owner\"\n" && issensitive(module.github-identity-federation.owner_condition)
     error_message = "The root module must preserve the exact sensitive owner condition."
+  }
+  assert {
+    condition     = nonsensitive(output.cluster_artifact_registry_repository_url) == "southamerica-west1-docker.pkg.dev/example-project/cluster-internal-images" && issensitive(output.cluster_artifact_registry_repository_url)
+    error_message = "The root module must expose the private cluster image repository URL as a sensitive output."
   }
 }
 

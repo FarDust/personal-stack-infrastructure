@@ -21,3 +21,9 @@ output "workspace_backup_managed_folder_paths" {
   value       = module.workspace_backup_storage.managed_folder_paths
   sensitive   = true
 }
+
+output "cluster_artifact_registry_repository_url" {
+  description = "Private Docker registry URL for internal cluster images."
+  value       = module.cluster_artifact_registry.cluster_artifact_registry_repository_url
+  sensitive   = true
+}

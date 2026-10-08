@@ -33,3 +33,12 @@ module "workspace_backup_storage" {
   workspace_backup_folder_paths = var.workspace_backup_folder_paths
   writer_service_account_id     = var.workspace_backup_writer_service_account_id
 }
+
+module "cluster_artifact_registry" {
+  source                                  = "./configs/artifact-registry"
+  project_id                              = var.project_id
+  cluster_artifact_registry_location      = var.cluster_artifact_registry_location
+  cluster_artifact_registry_repository_id = var.cluster_artifact_registry_repository_id
+  cluster_artifact_registry_writers       = var.cluster_artifact_registry_writers
+  cluster_artifact_registry_readers       = var.cluster_artifact_registry_readers
+}
