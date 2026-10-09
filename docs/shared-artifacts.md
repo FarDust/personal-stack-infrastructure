@@ -88,6 +88,25 @@ It grants creation-only project permission plus management restricted to the
 designated bucket; the main configuration remains responsible for the bucket
 and consumer access. Keep bootstrap credentials temporary and outside source.
 
+The same bootstrap root is the sole Terraform state owner for the private
+Artifact Registry Docker repository and must complete before the main root is
+planned or applied. It creates the validated configured
+repository, including deletion protection, because repository creation is
+authorized at the location parent and cannot be narrowed to an exact repository
+name. The main root reads that exact repository and manages only additive
+repository-level writer and reader memberships. It does not manage repository
+lifecycle.
+
+The main Terraform executor receives an additive repository-scoped custom role
+with only `artifactregistry.repositories.get`,
+`artifactregistry.repositories.getIamPolicy`, and
+`artifactregistry.repositories.setIamPolicy`, which permits that lookup and
+additive IAM maintenance. Do not grant it a project-level Artifact Registry
+role, including `roles/artifactregistry.admin`. Use a short-lived bootstrap
+credential only in the separate reviewed bootstrap workspace and remove it after
+the terminal result; keep refresh credentials and service-account keys out of
+source and workspace variables.
+
 The bucket enforces public-access prevention and uniform bucket-level access,
 enables versioning, prevents Terraform destruction, and disables force-destroy.
 Approved identities are supplied through sensitive `artifact_bucket_writers`.

@@ -19,18 +19,13 @@ run "private_cluster_image_repository" {
   }
 
   assert {
-    condition     = google_artifact_registry_repository.cluster_internal_images.format == "DOCKER"
-    error_message = "The internal cluster image repository must be a Docker repository."
+    condition     = data.google_artifact_registry_repository.cluster_internal_images.project == "example-project" && data.google_artifact_registry_repository.cluster_internal_images.location == "southamerica-west1" && data.google_artifact_registry_repository.cluster_internal_images.repository_id == "cluster-internal-images"
+    error_message = "The main configuration must read the exact bootstrap-owned private repository."
   }
 
   assert {
-    condition     = google_artifact_registry_repository.cluster_internal_images.repository_id == "cluster-internal-images"
-    error_message = "The internal cluster image repository must use the expected private repository ID."
-  }
-
-  assert {
-    condition     = google_artifact_registry_repository.cluster_internal_images.location == "southamerica-west1"
-    error_message = "The internal cluster image repository must use the Santiago region."
+    condition     = google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].project == data.google_artifact_registry_repository.cluster_internal_images.project && google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].location == data.google_artifact_registry_repository.cluster_internal_images.location && google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].repository == data.google_artifact_registry_repository.cluster_internal_images.name
+    error_message = "Writer memberships must remain scoped to the bootstrap-owned repository."
   }
 
   assert {
@@ -39,7 +34,7 @@ run "private_cluster_image_repository" {
   }
 
   assert {
-    condition     = length(google_artifact_registry_repository_iam_member.cluster_internal_image_reader) == 1 && google_artifact_registry_repository_iam_member.cluster_internal_image_reader["cluster"].role == "roles/artifactregistry.reader"
+    condition     = length(google_artifact_registry_repository_iam_member.cluster_internal_image_reader) == 1 && google_artifact_registry_repository_iam_member.cluster_internal_image_reader["cluster"].project == data.google_artifact_registry_repository.cluster_internal_images.project && google_artifact_registry_repository_iam_member.cluster_internal_image_reader["cluster"].location == data.google_artifact_registry_repository.cluster_internal_images.location && google_artifact_registry_repository_iam_member.cluster_internal_image_reader["cluster"].repository == data.google_artifact_registry_repository.cluster_internal_images.name && google_artifact_registry_repository_iam_member.cluster_internal_image_reader["cluster"].role == "roles/artifactregistry.reader"
     error_message = "Reader aliases must produce additive repository-scoped reader grants."
   }
 }
