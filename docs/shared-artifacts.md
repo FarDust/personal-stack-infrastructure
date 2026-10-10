@@ -48,6 +48,30 @@ The library's explicit legacy compatibility tests remain separate from the
 consumer's modern-default tests. Modern composition tests assert zero bindings,
 one member per repository, owner-condition sensitivity, and account naming.
 
+### Image publishers (GitHub Actions to the private registry)
+
+A GitHub repository that builds images for `cluster-internal-images` gets its own
+federated user, so it never shares the project-wide `secrets` account. Add one
+entry to the non-secret `federated_github_users` Terraform Cloud variable with a
+distinct `name` (for example `ephemeral-rebalance-fa`, used unchanged because of
+the `-fa` suffix) and `allowed-repositories` holding only that exact
+`owner/repository`. The provider's owner condition is untouched.
+
+Grant push access only through the additive `cluster_artifact_registry_writers`
+Terraform Cloud variable, as `serviceAccount:<federated account email>`; this
+yields one repository-level `roles/artifactregistry.writer` member on
+`cluster-internal-images` and nothing at project or organization level. Leave
+`cluster_artifact_registry_readers` alone: pulling is a separate identity and a
+separate change. The account email does not exist until the federated user is
+applied, so deliver this in two reviewed applies: first the federated user, then
+the writer variable. Never create a service-account key.
+
+Consumers read two private values from the sensitive root outputs
+`github_workload_identity_provider` and `federated_github_service_accounts` and
+store them as repository variables (`GCP_WORKLOAD_IDENTITY_PROVIDER`,
+`GCP_SERVICE_ACCOUNT`) for `google-github-actions/auth` with `id-token: write`.
+Keep the values out of this public repository.
+
 ### One-time state adoption
 
 Existing authoritative bindings must be forgotten, not destroyed. Supply the

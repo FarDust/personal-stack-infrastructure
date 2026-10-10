@@ -27,3 +27,23 @@ output "cluster_artifact_registry_repository_url" {
   value       = module.cluster_artifact_registry.cluster_artifact_registry_repository_url
   sensitive   = true
 }
+
+data "google_iam_workload_identity_pool_provider" "github" {
+  project                            = var.project_id
+  workload_identity_pool_id          = "github-${var.identity_pool_id}"
+  workload_identity_pool_provider_id = "github-${var.identity_provider_id}"
+
+  depends_on = [module.github-identity-federation]
+}
+
+output "github_workload_identity_provider" {
+  description = "Full resource name of the GitHub workload identity provider, for the workflow `workload_identity_provider` input. Record it privately."
+  value       = data.google_iam_workload_identity_pool_provider.github.name
+  sensitive   = true
+}
+
+output "federated_github_service_accounts" {
+  description = "Federated service-account emails keyed by federated user alias, for the workflow `service_account` input. Record them privately."
+  value       = { for alias, user in module.github-identity-federation.federated-github-users : alias => user.federated-user.email }
+  sensitive   = true
+}

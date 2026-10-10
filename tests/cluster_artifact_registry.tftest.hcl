@@ -60,3 +60,47 @@ run "reject_all_authenticated_reader" {
   }
   expect_failures = [var.cluster_artifact_registry_readers]
 }
+
+run "single_federated_writer_has_no_reader_or_other_grant" {
+  command = plan
+  module {
+    source = "./configs/artifact-registry"
+  }
+  variables {
+    cluster_artifact_registry_writers = {
+      publisher = "serviceAccount:publisher@example-project.iam.gserviceaccount.com"
+    }
+    cluster_artifact_registry_readers = {}
+  }
+
+  assert {
+    condition     = length(google_artifact_registry_repository_iam_member.cluster_internal_image_writer) == 1 && google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].role == "roles/artifactregistry.writer" && google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].member == "serviceAccount:publisher@example-project.iam.gserviceaccount.com"
+    error_message = "A federated publisher must receive exactly one repository-scoped writer grant."
+  }
+
+  assert {
+    condition     = length(google_artifact_registry_repository_iam_member.cluster_internal_image_reader) == 0
+    error_message = "A writer-only principal must not receive a reader grant."
+  }
+
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].repository == data.google_artifact_registry_repository.cluster_internal_images.name && google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].location == "southamerica-west1"
+    error_message = "The writer grant must stay on the exact repository and location."
+  }
+
+  assert {
+    condition     = issensitive(var.cluster_artifact_registry_writers) && issensitive(var.project_id)
+    error_message = "Writer principals and the project ID must remain sensitive."
+  }
+}
+
+run "reject_domain_wide_writer" {
+  command = plan
+  module {
+    source = "./configs/artifact-registry"
+  }
+  variables {
+    cluster_artifact_registry_writers = { everyone = "domain:example.com" }
+  }
+  expect_failures = [var.cluster_artifact_registry_writers]
+}
