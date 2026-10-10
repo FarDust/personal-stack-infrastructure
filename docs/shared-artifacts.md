@@ -51,11 +51,24 @@ one member per repository, owner-condition sensitivity, and account naming.
 ### Image publishers (GitHub Actions to the private registry)
 
 A GitHub repository that builds images for `cluster-internal-images` gets its own
-federated user, so it never shares the project-wide `secrets` account. Add one
-entry to the non-secret `federated_github_users` Terraform Cloud variable with a
-distinct `name` (for example `ephemeral-rebalance-fa`, used unchanged because of
-the `-fa` suffix) and `allowed-repositories` holding only that exact
-`owner/repository`. The provider's owner condition is untouched.
+federated user, so it never shares the project-wide `secrets` account. Configure
+that account in the non-secret `federated_github_users` Terraform Cloud variable
+with one exact `owner/repository`, then reference its key from the
+`github_image_publisher` object together with the immutable numeric repository
+ID, dedicated provider ID, and exact workflow path. Root composition verifies the
+one-repository contract but passes an empty repository list to the general
+federation module, preserving the service account while removing its broad
+general-provider impersonation member.
+
+The dedicated provider admits only a `push` from the configured immutable
+repository when `.github/workflows/image.yml` runs at the caller's exact ref. The
+ref must be `refs/heads/main` or a stable `vMAJOR.MINOR.PATCH` tag with no leading
+zeros, prerelease suffix, or build metadata. Its constant
+`attribute.trust_profile` mapping is absent from the general provider, and the
+publisher service account trusts only the corresponding `image-publisher-v1`
+principal set. See the
+[architecture decision](adr/image-publisher-federation.md) for the boundary and
+alternatives.
 
 Grant push access only through the additive `cluster_artifact_registry_writers`
 Terraform Cloud variable, as `serviceAccount:<federated account email>`; this
@@ -66,11 +79,13 @@ separate change. The account email does not exist until the federated user is
 applied, so deliver this in two reviewed applies: first the federated user, then
 the writer variable. Never create a service-account key.
 
-Consumers read two private values from the sensitive root outputs
-`github_workload_identity_provider` and `federated_github_service_accounts` and
-store them as repository variables (`GCP_WORKLOAD_IDENTITY_PROVIDER`,
-`GCP_SERVICE_ACCOUNT`) for `google-github-actions/auth` with `id-token: write`.
-Keep the values out of this public repository.
+Image-publisher consumers read the private values from the sensitive root outputs
+`github_image_publisher_workload_identity_provider` and
+`federated_github_service_accounts` and store them as repository variables
+(`GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`) for
+`google-github-actions/auth` with `id-token: write`. Other GitHub consumers retain
+the general `github_workload_identity_provider` output. Keep all values out of
+this public repository.
 
 ### One-time state adoption
 
