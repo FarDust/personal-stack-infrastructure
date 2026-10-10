@@ -1,6 +1,7 @@
 # Infrastructure Repository Guidance
 
 This repository manages infrastructure with Terraform Cloud. Read this file before using Terraform, CI tooling, cost-estimation tools, or the official HashiCorp Terraform MCP server.
+Use [`docs/README.md`](docs/README.md) as the documentation and architecture-decision index.
 
 ## Terraform Cloud Workflow
 
