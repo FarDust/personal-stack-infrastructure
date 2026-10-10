@@ -41,6 +41,19 @@ variable "federated_github_users" {
   sensitive   = false
 }
 
+variable "github_image_publisher" {
+  type = object({
+    federated_user_key            = string
+    workload_identity_provider_id = string
+    repository                    = string
+    repository_id                 = string
+    workflow_path                 = string
+  })
+  description = "GitHub identity and workflow contract for the image publisher."
+  sensitive   = false
+  nullable    = false
+}
+
 variable "artifact_bucket_name" {
   type        = string
   description = "The shared private artifact bucket name supplied by Terraform Cloud."

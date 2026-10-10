@@ -12,6 +12,19 @@ variables {
       description          = "validates root composition"
       allowed-repositories = ["example-owner/example-repository"]
     }
+    publisher = {
+      name                 = "example-publisher-fa"
+      display_name         = "Example Publisher"
+      description          = "validates strict publisher composition"
+      allowed-repositories = ["example-owner/example-publisher"]
+    }
+  }
+  github_image_publisher = {
+    federated_user_key            = "publisher"
+    workload_identity_provider_id = "example-publisher"
+    repository                    = "example-owner/example-publisher"
+    repository_id                 = "1412600981"
+    workflow_path                 = ".github/workflows/image.yml"
   }
   artifact_bucket_name     = "example-private-artifacts"
   artifact_bucket_location = "US-CENTRAL1"
@@ -65,6 +78,12 @@ run "modern_multiple_repositories_and_account_name" {
         display_name         = "Example"
         description          = "validates modern composition"
         allowed-repositories = ["example-owner/first", "example-owner/second"]
+      }
+      publisher = {
+        name                 = "example-publisher-fa"
+        display_name         = "Example Publisher"
+        description          = "validates strict publisher composition"
+        allowed-repositories = ["example-owner/example-publisher"]
       }
     }
   }

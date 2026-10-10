@@ -4,7 +4,7 @@ module "github-identity-federation" {
   source                   = "git::https://github.com/FarDust/terraform-infrastructure.git//modules/github-identity-federation?ref=132e099a43d302b472863e110f11338833503eb6"
   github_repository_owner  = var.github_repository_owner
   project-id               = var.project_id
-  federated-github-users   = var.federated_github_users
+  federated-github-users   = local.github_federated_users
   landing-identity-pool-id = var.identity_pool_id
   identity-provider-id     = var.identity_provider_id
 }

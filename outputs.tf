@@ -42,6 +42,20 @@ output "github_workload_identity_provider" {
   sensitive   = true
 }
 
+output "github_image_publisher_workload_identity_provider" {
+  description = "Full publisher-specific provider name for the image publication workflow. Record it privately."
+  value       = module.github_image_publisher.provider_name
+  sensitive   = true
+
+  precondition {
+    condition = contains(keys(var.federated_github_users), var.github_image_publisher.federated_user_key) ? (
+      length(var.federated_github_users[var.github_image_publisher.federated_user_key].allowed-repositories) == 1 &&
+      var.federated_github_users[var.github_image_publisher.federated_user_key].allowed-repositories[0] == var.github_image_publisher.repository
+    ) : false
+    error_message = "The image publisher key must identify one federated user whose sole allowed repository exactly matches the publisher repository."
+  }
+}
+
 output "federated_github_service_accounts" {
   description = "Federated service-account emails keyed by federated user alias, for the workflow `service_account` input. Record them privately."
   value       = { for alias, user in module.github-identity-federation.federated-github-users : alias => user.federated-user.email }
