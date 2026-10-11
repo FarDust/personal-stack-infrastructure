@@ -37,6 +37,9 @@ variables {
   artifact_bucket_name     = "example-private-artifacts"
   artifact_bucket_location = "southamerica-west1"
   artifact_bucket_writers  = {}
+  cluster_artifact_registry_writers = {
+    publisher = "serviceAccount:example-publisher-fa@example-project.iam.gserviceaccount.com"
+  }
 }
 
 run "publisher_adds_strict_federation_before_cutover" {
@@ -110,6 +113,24 @@ run "reject_mismatched_publisher_repository" {
       workflow_path                  = ".github/workflows/image.yml"
       trusted_workflow_path          = ".github/workflows/publish-image.yml"
       retain_general_provider_access = true
+    }
+  }
+  expect_failures = [output.github_image_publisher_workload_identity_provider]
+}
+
+run "reject_general_provider_id_collision" {
+  command = plan
+  variables {
+    identity_provider_id = "example-publisher"
+  }
+  expect_failures = [output.github_image_publisher_workload_identity_provider]
+}
+
+run "reject_publisher_without_registry_writer" {
+  command = plan
+  variables {
+    cluster_artifact_registry_writers = {
+      other = "serviceAccount:other@example-project.iam.gserviceaccount.com"
     }
   }
   expect_failures = [output.github_image_publisher_workload_identity_provider]

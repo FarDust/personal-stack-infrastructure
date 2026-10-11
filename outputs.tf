@@ -54,6 +54,16 @@ output "github_image_publisher_workload_identity_provider" {
     ) : false
     error_message = "The image publisher key must identify one federated user whose sole allowed repository exactly matches the publisher repository."
   }
+
+  precondition {
+    condition     = var.github_image_publisher.workload_identity_provider_id != var.identity_provider_id
+    error_message = "The image publisher must use a provider ID distinct from the general GitHub provider ID."
+  }
+
+  precondition {
+    condition     = local.github_image_publisher_principal == null ? false : contains(values(var.cluster_artifact_registry_writers), local.github_image_publisher_principal)
+    error_message = "The selected image-publisher service account must have an Artifact Registry writer grant."
+  }
 }
 
 output "federated_github_service_accounts" {

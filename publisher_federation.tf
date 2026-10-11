@@ -4,6 +4,11 @@ locals {
       allowed-repositories = key == var.github_image_publisher.federated_user_key && !var.github_image_publisher.retain_general_provider_access ? [] : user.allowed-repositories
     })
   }
+  github_image_publisher_user = contains(keys(var.federated_github_users), var.github_image_publisher.federated_user_key) ? var.federated_github_users[var.github_image_publisher.federated_user_key] : null
+  github_image_publisher_account_id = local.github_image_publisher_user == null ? null : (
+    endswith(local.github_image_publisher_user.name, "-fa") ? local.github_image_publisher_user.name : "${local.github_image_publisher_user.name}-federated-user"
+  )
+  github_image_publisher_principal = local.github_image_publisher_account_id == null ? null : "serviceAccount:${local.github_image_publisher_account_id}@${var.project_id}.iam.gserviceaccount.com"
 }
 
 module "github_image_publisher" {

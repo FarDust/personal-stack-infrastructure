@@ -32,7 +32,7 @@ variables {
   artifact_bucket_location = "US-CENTRAL1"
   artifact_bucket_writers  = {}
   cluster_artifact_registry_writers = {
-    publisher = "serviceAccount:publisher@example-project.iam.gserviceaccount.com"
+    publisher = "serviceAccount:example-publisher-fa@example-project.iam.gserviceaccount.com"
   }
   cluster_artifact_registry_readers = {
     cluster = "serviceAccount:cluster@example-project.iam.gserviceaccount.com"
