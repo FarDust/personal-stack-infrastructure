@@ -26,23 +26,25 @@ variables {
     }
   }
   github_image_publisher = {
-    federated_user_key            = "publisher"
-    workload_identity_provider_id = "example-publisher"
-    repository                    = "example-owner/example-publisher"
-    repository_id                 = "1412600981"
-    workflow_path                 = ".github/workflows/image.yml"
+    federated_user_key             = "publisher"
+    workload_identity_provider_id  = "example-publisher"
+    repository                     = "example-owner/example-publisher"
+    repository_id                  = "1412600981"
+    workflow_path                  = ".github/workflows/image.yml"
+    trusted_workflow_path          = ".github/workflows/publish-image.yml"
+    retain_general_provider_access = true
   }
   artifact_bucket_name     = "example-private-artifacts"
   artifact_bucket_location = "southamerica-west1"
   artifact_bucket_writers  = {}
 }
 
-run "publisher_uses_only_strict_federation" {
+run "publisher_adds_strict_federation_before_cutover" {
   command = plan
 
   assert {
-    condition     = nonsensitive(module.github-identity-federation.federated-github-users["publisher"].iam_member_count) == 0 && nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_member_count) == 1
-    error_message = "The publisher must lose the general provider's repository member while unrelated federation remains unchanged."
+    condition     = nonsensitive(module.github-identity-federation.federated-github-users["publisher"].iam_member_count) == 1 && nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_member_count) == 1
+    error_message = "Phase one must retain the publisher's general-provider member while adding strict federation; unrelated federation must remain unchanged."
   }
 
   assert {
@@ -51,8 +53,8 @@ run "publisher_uses_only_strict_federation" {
   }
 
   assert {
-    condition     = strcontains(nonsensitive(module.github_image_publisher.attribute_condition), "assertion.repository_id == \"1412600981\"") && strcontains(nonsensitive(module.github_image_publisher.attribute_condition), "assertion.workflow_ref == \"example-owner/example-publisher/.github/workflows/image.yml@\" + assertion.ref")
-    error_message = "The root must configure the publisher-specific provider with the immutable repository and exact workflow."
+    condition     = strcontains(nonsensitive(module.github_image_publisher.attribute_condition), "assertion.repository_id == \"1412600981\"") && strcontains(nonsensitive(module.github_image_publisher.attribute_condition), "assertion.workflow_ref == \"example-owner/example-publisher/.github/workflows/image.yml@\" + assertion.ref") && strcontains(nonsensitive(module.github_image_publisher.attribute_condition), "assertion.job_workflow_ref == \"example-owner/example-publisher/.github/workflows/publish-image.yml@refs/heads/main\"")
+    error_message = "The root must configure the immutable repository, exact caller workflow, and trusted reusable workflow on main."
   }
 
   assert {
@@ -61,15 +63,37 @@ run "publisher_uses_only_strict_federation" {
   }
 }
 
+run "publisher_removes_general_federation_after_canary" {
+  command = plan
+  variables {
+    github_image_publisher = {
+      federated_user_key             = "publisher"
+      workload_identity_provider_id  = "example-publisher"
+      repository                     = "example-owner/example-publisher"
+      repository_id                  = "1412600981"
+      workflow_path                  = ".github/workflows/image.yml"
+      trusted_workflow_path          = ".github/workflows/publish-image.yml"
+      retain_general_provider_access = false
+    }
+  }
+
+  assert {
+    condition     = nonsensitive(module.github-identity-federation.federated-github-users["publisher"].iam_member_count) == 0 && nonsensitive(module.github-identity-federation.federated-github-users["secrets"].iam_member_count) == 1
+    error_message = "Phase two must remove only the publisher's general-provider member after the canary authorizes cutover."
+  }
+}
+
 run "reject_missing_publisher_account" {
   command = plan
   variables {
     github_image_publisher = {
-      federated_user_key            = "missing"
-      workload_identity_provider_id = "example-publisher"
-      repository                    = "example-owner/example-publisher"
-      repository_id                 = "1412600981"
-      workflow_path                 = ".github/workflows/image.yml"
+      federated_user_key             = "missing"
+      workload_identity_provider_id  = "example-publisher"
+      repository                     = "example-owner/example-publisher"
+      repository_id                  = "1412600981"
+      workflow_path                  = ".github/workflows/image.yml"
+      trusted_workflow_path          = ".github/workflows/publish-image.yml"
+      retain_general_provider_access = true
     }
   }
   expect_failures = [output.github_image_publisher_workload_identity_provider]
@@ -79,11 +103,13 @@ run "reject_mismatched_publisher_repository" {
   command = plan
   variables {
     github_image_publisher = {
-      federated_user_key            = "publisher"
-      workload_identity_provider_id = "example-publisher"
-      repository                    = "example-owner/other-repository"
-      repository_id                 = "1412600981"
-      workflow_path                 = ".github/workflows/image.yml"
+      federated_user_key             = "publisher"
+      workload_identity_provider_id  = "example-publisher"
+      repository                     = "example-owner/other-repository"
+      repository_id                  = "1412600981"
+      workflow_path                  = ".github/workflows/image.yml"
+      trusted_workflow_path          = ".github/workflows/publish-image.yml"
+      retain_general_provider_access = true
     }
   }
   expect_failures = [output.github_image_publisher_workload_identity_provider]

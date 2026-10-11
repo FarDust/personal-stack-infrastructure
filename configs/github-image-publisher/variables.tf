@@ -73,3 +73,14 @@ variable "workflow_path" {
     error_message = "Provide one workflow file below .github/workflows with a .yml or .yaml extension."
   }
 }
+
+variable "trusted_workflow_path" {
+  type        = string
+  description = "Repository-relative reusable workflow path that owns authenticated publication on main."
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^\\.github/workflows/[A-Za-z0-9_.-]+\\.ya?ml$", var.trusted_workflow_path))
+    error_message = "Provide one reusable workflow file below .github/workflows with a .yml or .yaml extension."
+  }
+}

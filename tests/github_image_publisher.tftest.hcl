@@ -14,6 +14,7 @@ variables {
   repository                    = "example-owner/example-publisher"
   repository_id                 = "1412600981"
   workflow_path                 = ".github/workflows/image.yml"
+  trusted_workflow_path         = ".github/workflows/publish-image.yml"
 }
 
 run "publisher_provider_uses_exact_claim_contract" {
@@ -33,9 +34,10 @@ run "publisher_provider_uses_exact_claim_contract" {
       assertion.repository == "example-owner/example-publisher" &&
       assertion.event_name == "push" &&
       assertion.workflow_ref == "example-owner/example-publisher/.github/workflows/image.yml@" + assertion.ref &&
+      assertion.job_workflow_ref == "example-owner/example-publisher/.github/workflows/publish-image.yml@refs/heads/main" &&
       (assertion.ref == "refs/heads/main" || assertion.ref.matches("^refs/tags/v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
     EOT
-    error_message = "The publisher provider must require the immutable repository, push event, exact workflow at the caller ref, main, or an exact stable SemVer tag."
+    error_message = "The publisher provider must require the immutable repository, push event, exact caller workflow, trusted reusable workflow on main, and an allowed publication ref."
   }
 
   assert {
@@ -66,6 +68,17 @@ run "reject_non_workflow_path" {
     workflow_path = "scripts/publish.sh"
   }
   expect_failures = [var.workflow_path]
+}
+
+run "reject_non_reusable_workflow_path" {
+  command = plan
+  module {
+    source = "./configs/github-image-publisher"
+  }
+  variables {
+    trusted_workflow_path = "scripts/publish.sh"
+  }
+  expect_failures = [var.trusted_workflow_path]
 }
 
 run "reject_non_numeric_repository_id" {

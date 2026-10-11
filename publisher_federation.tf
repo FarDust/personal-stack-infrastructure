@@ -1,7 +1,7 @@
 locals {
   github_federated_users = {
     for key, user in var.federated_github_users : key => merge(user, {
-      allowed-repositories = key == var.github_image_publisher.federated_user_key ? [] : user.allowed-repositories
+      allowed-repositories = key == var.github_image_publisher.federated_user_key && !var.github_image_publisher.retain_general_provider_access ? [] : user.allowed-repositories
     })
   }
 }
@@ -16,4 +16,5 @@ module "github_image_publisher" {
   repository                    = var.github_image_publisher.repository
   repository_id                 = var.github_image_publisher.repository_id
   workflow_path                 = var.github_image_publisher.workflow_path
+  trusted_workflow_path         = var.github_image_publisher.trusted_workflow_path
 }

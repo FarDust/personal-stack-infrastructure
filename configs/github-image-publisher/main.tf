@@ -5,6 +5,7 @@ locals {
     assertion.repository == ${jsonencode(var.repository)} &&
     assertion.event_name == "push" &&
     assertion.workflow_ref == ${jsonencode("${var.repository}/${var.workflow_path}@")} + assertion.ref &&
+    assertion.job_workflow_ref == ${jsonencode("${var.repository}/${var.trusted_workflow_path}@refs/heads/main")} &&
     (assertion.ref == "refs/heads/main" || assertion.ref.matches("^refs/tags/v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
   EOT
   workload_identity_pool_name = "projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/github-${var.workload_identity_pool_id}"
