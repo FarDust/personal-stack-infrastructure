@@ -41,6 +41,21 @@ variable "federated_github_users" {
   sensitive   = false
 }
 
+variable "github_image_publisher" {
+  type = object({
+    federated_user_key             = string
+    workload_identity_provider_id  = string
+    repository                     = string
+    repository_id                  = string
+    workflow_path                  = string
+    trusted_workflow_path          = string
+    retain_general_provider_access = bool
+  })
+  description = "GitHub identity, workflow, and phased-cutover contract for the image publisher. Keep general-provider access during the canary phase."
+  sensitive   = false
+  nullable    = false
+}
+
 variable "artifact_bucket_name" {
   type        = string
   description = "The shared private artifact bucket name supplied by Terraform Cloud."
