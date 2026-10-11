@@ -11,13 +11,14 @@ repository identity, or stable release-ref policy.
 
 ## Decision
 
-Keep the existing pool and service account, but remove the image publisher's
-repository member from the general provider. Create a dedicated provider in the
+Keep the existing pool and service account. Create a dedicated provider in the
 same pool whose admission condition requires all of the following:
 
 - the exact immutable GitHub repository ID and matching `owner/repository` name;
 - the `push` event;
 - `.github/workflows/image.yml` running at the caller's exact ref;
+- `.github/workflows/publish-image.yml` running as the reusable job workflow at
+  `refs/heads/main`;
 - either `refs/heads/main` or an exact stable `vMAJOR.MINOR.PATCH` tag.
 
 The provider maps the constant `attribute.trust_profile` value
@@ -27,13 +28,21 @@ general provider does not map the attribute, so its identities cannot use the
 new member.
 
 The public root input identifies the intended publisher account and repository.
-Root composition verifies that this account has exactly that one repository,
-then passes an empty repository list to the general module while preserving the
-service-account resource and state address. Deployment-specific provider and
-service-account values remain sensitive outputs.
+Root composition verifies that this account has exactly that one repository.
+During phase one, `retain_general_provider_access = true` keeps the existing
+general-provider member while the dedicated provider and member are added. Only
+after a real publication canary succeeds through the dedicated provider may a
+separate reviewed phase-two change set this value to `false`, passing an empty
+repository list to the general module while preserving the service-account
+resource and state address. Deployment-specific provider and service-account
+values remain sensitive outputs.
 
 ## Alternatives
 
+- Authenticating in the tag-local caller workflow would let an off-main tag
+  replace the ancestry check before requesting a token. Binding
+  `job_workflow_ref` to the reusable workflow on `main` keeps that check in
+  reviewed code.
 - Adding workflow and ref checks to the shared provider would impose one
   publisher's policy on unrelated GitHub identities and retain a shared trust
   boundary.
@@ -46,16 +55,19 @@ service-account values remain sensitive outputs.
 
 ## Consequences
 
-Applying the change removes one broad service-account IAM member and creates one
-provider plus one narrower member. It does not replace the pool, service account,
-or Artifact Registry grant and adds no recurring service charge. The workflow
-must use the new provider output; the general provider no longer authorizes the
-publisher after apply.
+Phase one creates one provider plus one narrower member and removes nothing. It
+does not replace the pool, service account, existing member, or Artifact Registry
+grant and adds no recurring service charge. The workflow then uses the new
+provider output for a real publication canary. Phase two removes the broad member
+only after that canary succeeds; until then the migration remains intentionally
+additive.
 
 ## Verification
 
-Mocked Terraform tests assert the exact claim condition, exclusive attribute
-mapping, principal-set member, preservation of the service account, removal of
+Mocked Terraform tests assert the exact claim condition including
+`job_workflow_ref`, exclusive attribute mapping, principal-set member,
+preservation of the service account, phase-one retention, phase-two removal of
 only the publisher's general member, and rejection of missing or mismatched root
-configuration. A full non-targeted Terraform Cloud plan must confirm the expected
-one removal and two additions without replacement before merge or apply.
+configuration. A phase-one full non-targeted Terraform Cloud plan must confirm
+two additions and no changes or removals before merge or apply. Phase two needs
+its own reviewed full plan after the canary evidence exists.
