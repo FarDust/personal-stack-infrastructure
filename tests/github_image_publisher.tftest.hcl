@@ -42,14 +42,14 @@ run "publisher_provider_uses_exact_claim_contract" {
 
   assert {
     condition = google_iam_workload_identity_pool_provider.github_image_publisher.attribute_mapping == tomap({
-      "attribute.trust_profile" = "\"image-publisher-v1\""
-      "google.subject"          = "\"image-publisher:\" + assertion.sub"
+      "attribute.trust_profile" = "\"image-publisher-1412600981\""
+      "google.subject"          = "\"image-publisher:1412600981\""
     })
-    error_message = "The publisher provider must expose only its provider-exclusive trust profile and namespaced subject."
+    error_message = "The publisher provider must expose a repository-specific trust profile and a bounded subject."
   }
 
   assert {
-    condition     = google_service_account_iam_member.github_image_publisher.role == "roles/iam.workloadIdentityUser" && google_service_account_iam_member.github_image_publisher.member == "principalSet://iam.googleapis.com/projects/123456789/locations/global/workloadIdentityPools/github-example-pool/attribute.trust_profile/image-publisher-v1"
+    condition     = google_service_account_iam_member.github_image_publisher.role == "roles/iam.workloadIdentityUser" && google_service_account_iam_member.github_image_publisher.member == "principalSet://iam.googleapis.com/projects/123456789/locations/global/workloadIdentityPools/github-example-pool/attribute.trust_profile/image-publisher-1412600981"
     error_message = "Only identities admitted by the publisher provider's exclusive trust profile may impersonate the publisher account."
   }
 
@@ -88,6 +88,17 @@ run "reject_non_numeric_repository_id" {
   }
   variables {
     repository_id = "repository-id"
+  }
+  expect_failures = [var.repository_id]
+}
+
+run "reject_oversized_repository_id" {
+  command = plan
+  module {
+    source = "./configs/github-image-publisher"
+  }
+  variables {
+    repository_id = "123456789012345678901"
   }
   expect_failures = [var.repository_id]
 }

@@ -1,5 +1,5 @@
 locals {
-  trust_profile               = "image-publisher-v1"
+  trust_profile               = "image-publisher-${var.repository_id}"
   attribute_condition         = <<-EOT
     assertion.repository_id == ${jsonencode(var.repository_id)} &&
     assertion.repository == ${jsonencode(var.repository)} &&
@@ -25,7 +25,7 @@ resource "google_iam_workload_identity_pool_provider" "github_image_publisher" {
 
   attribute_mapping = {
     "attribute.trust_profile" = jsonencode(local.trust_profile)
-    "google.subject"          = "\"image-publisher:\" + assertion.sub"
+    "google.subject"          = jsonencode("image-publisher:${var.repository_id}")
   }
 
   oidc {

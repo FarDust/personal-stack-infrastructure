@@ -58,8 +58,8 @@ variable "repository_id" {
   nullable    = false
 
   validation {
-    condition     = can(regex("^[1-9][0-9]*$", var.repository_id))
-    error_message = "Provide the immutable numeric GitHub repository ID."
+    condition     = length(var.repository_id) <= 20 && can(regex("^[1-9][0-9]*$", var.repository_id))
+    error_message = "Provide the immutable numeric GitHub repository ID using at most 20 digits."
   }
 }
 
