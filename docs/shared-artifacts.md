@@ -55,15 +55,18 @@ federated user, so it never shares the project-wide `secrets` account. Configure
 that account in the non-secret `federated_github_users` Terraform Cloud variable
 with one exact `owner/repository`, then reference its key from the
 `github_image_publisher` object together with the immutable numeric repository
-ID, dedicated provider ID, and exact workflow path. Root composition verifies the
-one-repository contract but passes an empty repository list to the general
-federation module, preserving the service account while removing its broad
-general-provider impersonation member.
+ID, dedicated provider ID, caller workflow path, reusable trusted workflow path,
+and phased-cutover flag. Root composition verifies the one-repository contract.
+Keep `retain_general_provider_access = true` while adding and canarying the
+dedicated provider; set it to `false` only in a later reviewed change after the
+real publication canary succeeds.
 
 The dedicated provider admits only a `push` from the configured immutable
-repository when `.github/workflows/image.yml` runs at the caller's exact ref. The
-ref must be `refs/heads/main` or a stable `vMAJOR.MINOR.PATCH` tag with no leading
-zeros, prerelease suffix, or build metadata. Its constant
+repository when `.github/workflows/image.yml` runs at the caller's exact ref and
+the authenticated reusable job comes from `.github/workflows/publish-image.yml`
+at `refs/heads/main`. The ref must be `refs/heads/main` or a stable
+`vMAJOR.MINOR.PATCH` tag with no leading zeros, prerelease suffix, or build
+metadata. Its constant
 `attribute.trust_profile` mapping is absent from the general provider, and the
 publisher service account trusts only the corresponding `image-publisher-v1`
 principal set. See the
@@ -86,6 +89,13 @@ Image-publisher consumers read the private values from the sensitive root output
 `google-github-actions/auth` with `id-token: write`. Other GitHub consumers retain
 the general `github_workload_identity_provider` output. Keep all values out of
 this public repository.
+
+The cutover is two reviewed phases. Phase one creates the dedicated provider and
+member while retaining the general-provider member; its full speculative plan
+must contain no destroy. Update the repository variable to the dedicated provider
+and require a successful real publication through the trusted reusable workflow.
+Only then may phase two disable `retain_general_provider_access` and remove the
+broad member. A blocked or unverified canary keeps phase two on hold.
 
 ### One-time state adoption
 
