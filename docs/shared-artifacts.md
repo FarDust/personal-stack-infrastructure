@@ -66,10 +66,11 @@ repository when `.github/workflows/image.yml` runs at the caller's exact ref and
 the authenticated reusable job comes from `.github/workflows/publish-image.yml`
 at `refs/heads/main`. The ref must be `refs/heads/main` or a stable
 `vMAJOR.MINOR.PATCH` tag with no leading zeros, prerelease suffix, or build
-metadata. Its constant
-`attribute.trust_profile` mapping is absent from the general provider, and the
-publisher service account trusts only the corresponding `image-publisher-v1`
-principal set. See the
+metadata. Its repository-specific `attribute.trust_profile` mapping is absent
+from the general provider, so only the dedicated provider can satisfy the new
+principal-set member. During phase one the service account also retains its
+existing general-provider member; trust becomes exclusive to the dedicated
+provider only after phase two removes that legacy member. See the
 [architecture decision](adr/image-publisher-federation.md) for the boundary and
 alternatives.
 

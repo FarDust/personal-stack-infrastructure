@@ -21,14 +21,18 @@ same pool whose admission condition requires all of the following:
   `refs/heads/main`;
 - either `refs/heads/main` or an exact stable `vMAJOR.MINOR.PATCH` tag.
 
-The provider maps the constant `attribute.trust_profile` value
-`image-publisher-v1`. The existing service account grants
-`roles/iam.workloadIdentityUser` only to that attribute principal set. The
-general provider does not map the attribute, so its identities cannot use the
-new member.
+The provider maps the repository-specific `attribute.trust_profile` value
+`image-publisher-<repository-id>`. The existing service account grants
+`roles/iam.workloadIdentityUser` to that attribute principal set. The general
+provider does not map the attribute, so its identities cannot use the new
+member. During phase one the service account still trusts its existing general-
+provider member; trust becomes exclusive to the dedicated provider only after
+phase two removes that legacy member.
 
 The public root input identifies the intended publisher account and repository.
-Root composition verifies that this account has exactly that one repository.
+Root composition verifies that this account has exactly that one repository,
+has the repository-level Artifact Registry writer grant, and uses a provider ID
+distinct from the general provider.
 During phase one, `retain_general_provider_access = true` keeps the existing
 general-provider member while the dedicated provider and member are added. Only
 after a real publication canary succeeds through the dedicated provider may a
@@ -65,9 +69,10 @@ additive.
 ## Verification
 
 Mocked Terraform tests assert the exact claim condition including
-`job_workflow_ref`, exclusive attribute mapping, principal-set member,
-preservation of the service account, phase-one retention, phase-two removal of
-only the publisher's general member, and rejection of missing or mismatched root
-configuration. A phase-one full non-targeted Terraform Cloud plan must confirm
+`job_workflow_ref`, repository-specific attribute mapping, bounded subject,
+principal-set member, preservation of the service account, phase-one retention,
+phase-two removal of only the publisher's general member, and rejection of
+missing, mismatched, colliding, or ungranted root configuration. A phase-one
+full non-targeted Terraform Cloud plan must confirm
 two additions and no changes or removals before merge or apply. Phase two needs
 its own reviewed full plan after the canary evidence exists.
