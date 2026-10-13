@@ -80,7 +80,7 @@ run "rejects_path_outside_loki_namespace" {
   expect_failures = [var.loki_storage_folder_path]
 }
 
-run "rejects_bucket_root_and_missing_trailing_slash" {
+run "rejects_missing_trailing_slash" {
   command = plan
 
   module {
