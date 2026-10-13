@@ -17,7 +17,7 @@ resource "google_storage_managed_folder" "loki" {
 
   bucket          = var.artifact_bucket_name
   name            = var.loki_storage_folder_path
-  deletion_policy = "PREVENT"
+  deletion_policy = "ABANDON"
   force_destroy   = false
 }
 

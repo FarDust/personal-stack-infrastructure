@@ -53,7 +53,7 @@ module "cluster_artifact_registry" {
 module "loki_storage" {
   source                   = "./configs/loki-storage"
   project_id               = var.project_id
-  artifact_bucket_name     = var.artifact_bucket_name
+  artifact_bucket_name     = module.storage.artifact_bucket_name
   loki_storage_folder_path = var.loki_storage_folder_path
   loki_service_account_id  = var.loki_service_account_id
 }

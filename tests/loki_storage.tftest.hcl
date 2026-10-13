@@ -21,8 +21,8 @@ run "loki_identity_is_folder_scoped" {
   }
 
   assert {
-    condition     = google_storage_managed_folder.loki[0].name == "loki/cluster/" && google_storage_managed_folder.loki[0].deletion_policy == "PREVENT" && !google_storage_managed_folder.loki[0].force_destroy
-    error_message = "The Loki managed folder must be protected from Terraform deletion."
+    condition     = google_storage_managed_folder.loki[0].name == "loki/cluster/" && google_storage_managed_folder.loki[0].deletion_policy == "ABANDON" && !google_storage_managed_folder.loki[0].force_destroy
+    error_message = "The Loki managed folder must never be deleted by Terraform, so disabling or moving it leaves the objects."
   }
 
   assert {

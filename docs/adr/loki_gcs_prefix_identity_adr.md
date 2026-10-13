@@ -15,7 +15,7 @@ Grafana Loki on the homelab Swarm keeps chunks and its TSDB index on a node-loca
 
 ## Why a managed folder instead of an IAM condition
 
-Managed folders are first-class IAM resources. A role granted on one applies to the objects whose names start with the folder path, including listing with that prefix, and the grant cannot reach other prefixes. An object-role IAM condition on `resource.name.startsWith(".../objects/loki/cluster/")` also limits get, create and delete, but `storage.objects.list` is evaluated against the bucket resource, so a prefix condition cannot authorize listing; the repository already uses a condition only for the delete-only Restic lock role, where listing is not needed. Loki's compactor and index listing require list, so the managed folder is the mechanism that actually enforces the boundary. The post-apply test in the PR proves it: writes, reads, listing and deletes succeed under `loki/cluster/` and are denied under other prefixes and on the bucket root.
+Managed folders are first-class IAM resources. A role granted on one applies to the objects whose names start with the folder path, including listing with that prefix, and the grant cannot reach other prefixes. An object-role IAM condition on `resource.name.startsWith(".../objects/loki/cluster/")` also limits get, create and delete, but `storage.objects.list` is evaluated against the bucket resource, so a prefix condition cannot authorize listing; the repository already uses a condition only for the delete-only Restic lock role, where listing is not needed. Loki's compactor and index listing require list, so the managed folder is the mechanism that actually enforces the boundary. The intended post-apply test (not yet run when this ADR was written; its result is recorded in the PR and the Verification section) checks that writes, reads, listing and deletes succeed under `loki/cluster/` and are denied under other prefixes and on the bucket root.
 
 ## Credential type: static key, not workload identity federation
 
@@ -36,9 +36,10 @@ Loki's compactor deletes expired chunks, which versioning turns into noncurrent 
 ## Consequences and residual risk
 
 - The folder `loki/cluster/` also contains the scheduled Loki archive (`loki/cluster/backup/`) written by the rclone volume identity. The Loki identity can overwrite or delete those objects; versioning plus soft delete keep a recovery window and the lifecycle rule applies to them. Move Loki's data to a narrower sub-prefix (for example `loki/cluster/data/`) in its configuration to avoid reading or deleting archives; this ADR deliberately keeps the folder at the requested `loki/cluster/` rather than assuming a layout.
-- Managed folder `deletion_policy = "PREVENT"` stops Terraform from deleting the folder.
+- The managed folder uses `deletion_policy = "ABANDON"`: Terraform never deletes the folder or its objects. Setting `loki_storage_folder_path` to an empty value, or changing it, removes the folder and its IAM member from Terraform management and revokes the identity's access while the objects stay in the bucket. A `PREVENT` policy would make that decommissioning apply fail.
+- The folder takes its bucket name from `module.storage`, so a fresh deployment creates the bucket first.
 - A leaked key remains valid until deleted. Rotate on any exposure and at least yearly.
 
 ## Verification
 
-Mocked Terraform tests (`tests/loki_storage.tftest.hcl`) assert folder-only objectAdmin, the dedicated principal, rejection of paths outside `loki/`, a prefix-scoped archived-version rule and no rule by default. After the reviewed apply, impersonation of the account (and the delivered key) proves create, read, list and delete under `loki/cluster/` and denial on `dvc/`, `loki/other/` and the bucket root.
+Mocked Terraform tests (`tests/loki_storage.tftest.hcl`) assert folder-only objectAdmin, the dedicated principal, rejection of paths outside `loki/`, a prefix-scoped archived-version rule and no rule by default. After the reviewed apply, impersonation of the account and the delivered key is used to check create, read, list and delete under `loki/cluster/` and denial on `dvc/`, `loki/other/` and the bucket root. Results are recorded in the PR once executed.
