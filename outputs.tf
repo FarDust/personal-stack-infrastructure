@@ -47,3 +47,15 @@ output "federated_github_service_accounts" {
   value       = { for alias, user in module.github-identity-federation.federated-github-users : alias => user.federated-user.email }
   sensitive   = true
 }
+
+output "loki_storage_service_account" {
+  description = "The service-account principal that stores Loki data under its managed folder."
+  value       = module.loki_storage.service_account_email
+  sensitive   = true
+}
+
+output "loki_storage_managed_folder_path" {
+  description = "The managed folder that scopes the Loki identity."
+  value       = module.loki_storage.managed_folder_path
+  sensitive   = true
+}

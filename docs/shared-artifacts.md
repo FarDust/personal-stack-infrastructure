@@ -143,7 +143,7 @@ existing federation accounts are not implicitly authorized for storage,
 and these CI workflows do not upload DVC data. Verify each consuming identity's
 access after provisioning; IAM configuration is not a credential-distribution mechanism.
 
-No automatic object expiration is introduced. Stored bytes include live objects,
+The only automatic expiration is the prefix-scoped deletion of noncurrent versions under the Loki folder described in [the Loki ADR](adr/loki_gcs_prefix_identity_adr.md); live objects and other prefixes never expire. Stored bytes include live objects,
 noncurrent versions, and soft-deleted objects; the local artifact quota is not a
 remote-storage quota. Review retained bytes before uploads and agree a retention
 policy before adding lifecycle deletion.
