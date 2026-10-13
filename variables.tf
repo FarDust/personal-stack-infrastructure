@@ -149,3 +149,39 @@ variable "cluster_artifact_registry_readers" {
     error_message = "Use explicit user, group or service-account email principals; public grants are not allowed."
   }
 }
+
+variable "loki_storage_folder_path" {
+  type        = string
+  description = "The managed folder that scopes the Loki object-storage identity. Empty disables it."
+  default     = "loki/cluster/"
+  nullable    = false
+
+  validation {
+    condition     = var.loki_storage_folder_path == "" || can(regex("^loki/[a-z0-9][a-z0-9-]*/$", var.loki_storage_folder_path))
+    error_message = "Use an empty value or a lowercase path directly under loki/ with a trailing slash, for example loki/cluster/."
+  }
+}
+
+variable "loki_service_account_id" {
+  type        = string
+  description = "The generic account ID for the Loki object-storage identity."
+  default     = "loki-cluster-storage"
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.loki_service_account_id))
+    error_message = "Use a 6-30 character lowercase service-account ID with letters, numbers, and hyphens."
+  }
+}
+
+variable "loki_noncurrent_version_days" {
+  type        = number
+  description = "Days after which noncurrent object versions under the Loki folder are deleted."
+  default     = 3
+  nullable    = false
+
+  validation {
+    condition     = var.loki_noncurrent_version_days >= 1 && var.loki_noncurrent_version_days == floor(var.loki_noncurrent_version_days)
+    error_message = "Use a whole number of days, at least 1."
+  }
+}

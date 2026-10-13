@@ -27,3 +27,18 @@ variable "artifact_bucket_writers" {
     error_message = "Use explicit user, group or service-account email principals; public grants are not allowed."
   }
 }
+
+variable "noncurrent_version_expiry" {
+  type = map(object({
+    prefix = string
+    days   = number
+  }))
+  description = "Aliases mapped to an object-name prefix and the days after which its noncurrent versions are deleted."
+  default     = {}
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for rule in values(var.noncurrent_version_expiry) : rule.prefix != "" && rule.days >= 1])
+    error_message = "Each expiry rule needs a non-empty object-name prefix, so it cannot cover the whole bucket, and at least one day."
+  }
+}

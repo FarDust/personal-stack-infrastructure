@@ -15,6 +15,21 @@ resource "google_storage_bucket" "shared_artifacts" {
     enabled = true
   }
 
+  # Prefix-scoped cleanup of noncurrent versions; as decided in docs/adr/loki_gcs_prefix_identity_adr.md
+  dynamic "lifecycle_rule" {
+    for_each = var.noncurrent_version_expiry
+    content {
+      action {
+        type = "Delete"
+      }
+      condition {
+        with_state                 = "ARCHIVED"
+        matches_prefix             = [lifecycle_rule.value.prefix]
+        days_since_noncurrent_time = lifecycle_rule.value.days
+      }
+    }
+  }
+
   labels = {
     app     = "infra"
     purpose = "data"
