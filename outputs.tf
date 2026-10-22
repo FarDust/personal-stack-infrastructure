@@ -28,6 +28,12 @@ output "cluster_artifact_registry_repository_url" {
   sensitive   = true
 }
 
+output "python_artifact_registry_repository_url" {
+  description = "Private Python package index base path (Artifact Registry) for internal packages."
+  value       = module.python_artifact_registry.cluster_artifact_registry_repository_url
+  sensitive   = true
+}
+
 data "google_iam_workload_identity_pool_provider" "github" {
   project                            = var.project_id
   workload_identity_pool_id          = "github-${var.identity_pool_id}"

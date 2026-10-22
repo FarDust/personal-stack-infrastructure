@@ -150,6 +150,58 @@ variable "cluster_artifact_registry_readers" {
   }
 }
 
+variable "python_artifact_registry_location" {
+  type        = string
+  description = "Artifact Registry location for the private internal Python repository, supplied by Terraform Cloud."
+  default     = "southamerica-west1"
+  sensitive   = false
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[a-z]+-[a-z]+[0-9]+$", lower(var.python_artifact_registry_location)))
+    error_message = "Provide a regional Artifact Registry location and review its cost before deployment."
+  }
+}
+
+variable "python_artifact_registry_repository_id" {
+  type        = string
+  description = "Artifact Registry repository ID for the private internal Python repository."
+  default     = "python-internal"
+  sensitive   = false
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{2,62}$", var.python_artifact_registry_repository_id))
+    error_message = "The repository ID must be 3-63 lowercase letters, numbers, or hyphens and start with a letter."
+  }
+}
+
+variable "python_artifact_registry_writers" {
+  type        = map(string)
+  description = "Non-secret aliases mapped to approved Artifact Registry writer principals. Values are supplied by Terraform Cloud."
+  default     = {}
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for principal in values(var.python_artifact_registry_writers) : can(regex("^(user|serviceAccount|group):[^\\s]+@[^\\s]+$", principal))])
+    error_message = "Use explicit user, group or service-account email principals; public grants are not allowed."
+  }
+}
+
+variable "python_artifact_registry_readers" {
+  type        = map(string)
+  description = "Non-secret aliases mapped to approved Artifact Registry reader principals. Values are supplied by Terraform Cloud."
+  default     = {}
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for principal in values(var.python_artifact_registry_readers) : can(regex("^(user|serviceAccount|group):[^\\s]+@[^\\s]+$", principal))])
+    error_message = "Use explicit user, group or service-account email principals; public grants are not allowed."
+  }
+}
+
 variable "loki_storage_folder_path" {
   type        = string
   description = "The managed folder that scopes the Loki object-storage identity. Empty disables it."

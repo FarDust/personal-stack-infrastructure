@@ -50,6 +50,16 @@ module "cluster_artifact_registry" {
   cluster_artifact_registry_readers       = var.cluster_artifact_registry_readers
 }
 
+module "python_artifact_registry" {
+  # Reuses the reader/writer module for the bootstrap-owned PYTHON repository; resource names inside keep the original wording.
+  source                                  = "./configs/artifact-registry"
+  project_id                              = var.project_id
+  cluster_artifact_registry_location      = var.python_artifact_registry_location
+  cluster_artifact_registry_repository_id = var.python_artifact_registry_repository_id
+  cluster_artifact_registry_writers       = var.python_artifact_registry_writers
+  cluster_artifact_registry_readers       = var.python_artifact_registry_readers
+}
+
 module "loki_storage" {
   source                   = "./configs/loki-storage"
   project_id               = var.project_id
