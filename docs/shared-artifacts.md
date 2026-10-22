@@ -254,4 +254,16 @@ Terraform Cloud variables `python_artifact_registry_writers` and `python_artifac
 map non-secret aliases to explicit user, group or service-account principals; public principals are
 rejected. The sensitive output `python_artifact_registry_repository_url` is the pip/uv simple-index
 URL. Consumers authenticate with short-lived OAuth tokens (ADC, workload identity or the Keycloak
-workload federation), never static keys.
+workload federation) and no new static keys are created for this repository.
+
+### Cluster readers
+
+Cluster nodes and the cluster CI read the repository through an additive `roles/artifactregistry.reader`
+member at the repository only. The member is an alias in the sensitive `python_artifact_registry_readers`
+variable, whose value is the existing cluster storage service account; its credential is an existing
+credential managed outside this repository, which neither creates nor distributes a key for it.
+The consumer exchanges that credential for a short-lived access token at run time and passes it to pip or
+uv through the environment, never through arguments, files or logs. This grant does not allow publishing or deleting.
+The module input `cluster_artifact_registry_readers` receives the root variable `python_artifact_registry_readers`.
+Moving the cluster to Keycloak workload federation replaces that principal by changing the variable
+value, not this configuration.
