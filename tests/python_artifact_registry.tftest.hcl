@@ -56,6 +56,7 @@ run "python_repository_supports_multiple_readers_without_writer_rights" {
     error_message = "Each reader alias gets exactly one repository-scoped reader member and no other role."
   }
   assert {
+    # The single writer comes from the file-level variables block.
     condition     = length(google_artifact_registry_repository_iam_member.cluster_internal_image_writer) == 1
     error_message = "Adding readers must not add writers."
   }

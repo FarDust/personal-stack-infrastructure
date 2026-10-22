@@ -260,9 +260,10 @@ workload federation) and no new static keys are created for this repository.
 
 Cluster nodes and the cluster CI read the repository through an additive `roles/artifactregistry.reader`
 member at the repository only. The member is an alias in the sensitive `python_artifact_registry_readers`
-variable, whose value is the existing cluster storage service account; its credential is already
-delivered to the nodes by the cluster, and this repository neither creates nor distributes a key for it.
+variable, whose value is the existing cluster storage service account; its credential is an existing
+credential managed outside this repository, which neither creates nor distributes a key for it.
 The consumer exchanges that credential for a short-lived access token at run time and passes it to pip or
-uv through the environment, never through arguments, files or logs. The reader cannot publish or delete.
+uv through the environment, never through arguments, files or logs. This grant does not allow publishing or deleting.
+The module input `cluster_artifact_registry_readers` receives the root variable `python_artifact_registry_readers`.
 Moving the cluster to Keycloak workload federation replaces that principal by changing the variable
 value, not this configuration.
