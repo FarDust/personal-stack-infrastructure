@@ -25,8 +25,11 @@ The bootstrap grants:
   role for the main executor. The main root adds only additive reader and writer
   members (`python_artifact_registry_writers` / `python_artifact_registry_readers`
   Terraform Cloud variables); consumers pin the explicit index and authenticate
-  with ADC/OAuth tokens, never static keys. Python registry cost is storage and
-  egress only and is expected to be cents per month for a few wheels.
+  with ADC/OAuth tokens, never static keys. Apply this bootstrap workspace before the main
+  workspace: the main root reads the repository through a data source and its plan
+  fails with a not-found error until the repository exists. Python registry cost
+  is storage and egress only (first 0.5 GB free at Google's published rates; a few
+  wheels stay well under the USD 30 ceiling).
 
 Creation is authorized against the project, so the bucket-name condition alone
 cannot authorize creation. The creation-only role can create other new buckets

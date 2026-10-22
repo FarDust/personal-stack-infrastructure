@@ -29,8 +29,8 @@ output "cluster_artifact_registry_repository_url" {
 }
 
 output "python_artifact_registry_repository_url" {
-  description = "Private Python package index base path (Artifact Registry) for internal packages."
-  value       = module.python_artifact_registry.cluster_artifact_registry_repository_url
+  description = "Private Python simple-index URL (Artifact Registry) for internal packages; authenticate with an OAuth token, never a static key."
+  value       = "https://${var.python_artifact_registry_location}-python.pkg.dev/${var.project_id}/${var.python_artifact_registry_repository_id}/simple/"
   sensitive   = true
 }
 
