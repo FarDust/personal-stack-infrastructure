@@ -4,7 +4,7 @@ Status: accepted, 2026-10-13. Implemented by `configs/loki-storage` and the `non
 
 ## Context
 
-Grafana Loki on the homelab Swarm keeps chunks and its TSDB index on a node-local volume and needs a durable object store. The shared artifact bucket (regional, Santiago, uniform bucket-level access, public-access prevention enforced, versioning on, 7-day soft delete) is the intended target under the object-name prefix `loki/cluster/`. Loki needs to create, read, list and delete objects there (chunks, index files, compactor deletion). The only existing cluster credential with bucket access, the rclone volume identity, can read and delete every prefix, including workspace backups. An internet-fed log parser must not hold that key.
+Grafana Loki on the homelab Swarm keeps chunks and its TSDB index on a node-local volume and needs a durable object store. The shared artifact bucket (regional, uniform bucket-level access, public-access prevention enforced, versioning on, 7-day soft delete) is the intended target under the object-name prefix `loki/cluster/`. Loki needs to create, read, list and delete objects there (chunks, index files, compactor deletion). The only existing cluster credential with bucket access, the rclone volume identity, can read and delete every prefix, including workspace backups. An internet-fed log parser must not hold that key.
 
 ## Decision
 

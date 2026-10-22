@@ -30,7 +30,7 @@ run "creation_only_and_bucket_scoped_management" {
   }
   assert {
     condition     = google_artifact_registry_repository.cluster_internal_images.format == "DOCKER" && google_artifact_registry_repository.cluster_internal_images.location == "example-region1" && google_artifact_registry_repository.cluster_internal_images.repository_id == "example-image-repo" && google_artifact_registry_repository.cluster_internal_images.deletion_policy == "PREVENT"
-    error_message = "Bootstrap must own the protected private Docker repository in the configured Santiago location."
+    error_message = "Bootstrap must own the protected private Docker repository in the configured location."
   }
   assert {
     condition     = toset(google_project_iam_custom_role.artifact_registry_repository_iam_manager.permissions) == toset(["artifactregistry.repositories.get", "artifactregistry.repositories.getIamPolicy", "artifactregistry.repositories.setIamPolicy"])
