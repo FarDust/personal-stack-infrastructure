@@ -24,7 +24,6 @@ variable "terraform_executor" {
 variable "cluster_artifact_registry_location" {
   type        = string
   description = "Artifact Registry location for private cluster Docker images."
-  default     = "southamerica-west1"
   nullable    = false
 
   validation {
@@ -36,7 +35,6 @@ variable "cluster_artifact_registry_location" {
 variable "cluster_artifact_registry_repository_id" {
   type        = string
   description = "Artifact Registry repository ID for private cluster Docker images."
-  default     = "cluster-internal-images"
   nullable    = false
 
   validation {
@@ -48,7 +46,7 @@ variable "cluster_artifact_registry_repository_id" {
 variable "python_artifact_registry_location" {
   type        = string
   description = "Artifact Registry location for the private internal Python repository."
-  default     = "southamerica-west1"
+  sensitive   = true
   nullable    = false
 
   validation {
@@ -60,7 +58,7 @@ variable "python_artifact_registry_location" {
 variable "python_artifact_registry_repository_id" {
   type        = string
   description = "Artifact Registry repository ID for the private internal Python repository."
-  default     = "python-internal"
+  sensitive   = true
   nullable    = false
 
   validation {

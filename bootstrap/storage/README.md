@@ -10,17 +10,17 @@ The bootstrap grants:
 
 - A custom project role containing only `storage.buckets.create`.
 - Conditional `roles/storage.admin` with an exact bucket resource-name match.
-- The private `cluster-internal-images` Docker repository in
-  `southamerica-west1`, unless the validated location or repository ID inputs
-  select different values.
+- The private Docker repository, whose location and repository ID come from the
+  `cluster_artifact_registry_location` and `cluster_artifact_registry_repository_id`
+  workspace variables.
 - A custom role containing only `artifactregistry.repositories.get`,
   `artifactregistry.repositories.getIamPolicy`, and
   `artifactregistry.repositories.setIamPolicy`, granted additively at that
   repository to the main Terraform executor.
 
-- The private `python-internal` PYTHON repository in `southamerica-west1`
-  (variables `python_artifact_registry_location` and
-  `python_artifact_registry_repository_id`), protected with
+- The private PYTHON repository (location and repository ID come from the sensitive
+  workspace variables `python_artifact_registry_location` and
+  `python_artifact_registry_repository_id`; there are no defaults), protected with
   `deletion_policy = "PREVENT"`, plus the same repository-scoped IAM manager
   role for the main executor. The main root adds only additive reader and writer
   members (`python_artifact_registry_writers` / `python_artifact_registry_readers`

@@ -8,8 +8,8 @@ variables {
   cluster_artifact_registry_readers = {
     cluster = "serviceAccount:cluster@example-project.iam.gserviceaccount.com"
   }
-  cluster_artifact_registry_location      = "southamerica-west1"
-  cluster_artifact_registry_repository_id = "python-internal"
+  cluster_artifact_registry_location      = "example-region1"
+  cluster_artifact_registry_repository_id = "example-python-repo"
 }
 
 run "python_repository_grants_are_additive_and_repository_scoped" {
@@ -19,7 +19,7 @@ run "python_repository_grants_are_additive_and_repository_scoped" {
   }
 
   assert {
-    condition     = data.google_artifact_registry_repository.cluster_internal_images.repository_id == "python-internal" && data.google_artifact_registry_repository.cluster_internal_images.location == "southamerica-west1"
+    condition     = data.google_artifact_registry_repository.cluster_internal_images.repository_id == "example-python-repo" && data.google_artifact_registry_repository.cluster_internal_images.location == "example-region1"
     error_message = "The Python module instance must read the exact bootstrap-owned Python repository."
   }
   assert {

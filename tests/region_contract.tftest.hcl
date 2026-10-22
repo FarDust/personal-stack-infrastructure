@@ -13,9 +13,13 @@ variables {
       allowed-repositories = ["example-owner/example-repository"]
     }
   }
-  artifact_bucket_name     = "example-private-artifacts"
-  artifact_bucket_location = "US-CENTRAL1"
-  artifact_bucket_writers  = {}
+  artifact_bucket_name                    = "example-private-artifacts"
+  artifact_bucket_location                = "US-CENTRAL1"
+  artifact_bucket_writers                 = {}
+  cluster_artifact_registry_location      = "example-region1"
+  cluster_artifact_registry_repository_id = "example-image-repo"
+  python_artifact_registry_location       = "example-region1"
+  python_artifact_registry_repository_id  = "example-python-repo"
   cluster_artifact_registry_writers = {
     publisher = "serviceAccount:publisher@example-project.iam.gserviceaccount.com"
   }
@@ -43,7 +47,7 @@ run "accept_valid_region" {
     error_message = "The root module must preserve the exact sensitive owner condition."
   }
   assert {
-    condition     = nonsensitive(output.cluster_artifact_registry_repository_url) == "southamerica-west1-docker.pkg.dev/example-project/cluster-internal-images" && issensitive(output.cluster_artifact_registry_repository_url)
+    condition     = nonsensitive(output.cluster_artifact_registry_repository_url) == "example-region1-docker.pkg.dev/example-project/example-image-repo" && issensitive(output.cluster_artifact_registry_repository_url)
     error_message = "The root module must expose the private cluster image repository URL as a sensitive output."
   }
 }

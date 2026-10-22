@@ -50,7 +50,7 @@ one member per repository, owner-condition sensitivity, and account naming.
 
 ### Image publishers (GitHub Actions to the private registry)
 
-A GitHub repository that builds images for `cluster-internal-images` gets its own
+A GitHub repository that builds images for the private image repository gets its own
 federated user, so it never shares the project-wide `secrets` account. Add one
 entry to the non-secret `federated_github_users` Terraform Cloud variable with a
 distinct `name` (for example `ephemeral-rebalance-fa`, used unchanged because of
@@ -60,7 +60,7 @@ the `-fa` suffix) and `allowed-repositories` holding only that exact
 Grant push access only through the additive `cluster_artifact_registry_writers`
 Terraform Cloud variable, as `serviceAccount:<federated account email>`; this
 yields one repository-level `roles/artifactregistry.writer` member on
-`cluster-internal-images` and nothing at project or organization level. Leave
+the private image repository and nothing at project or organization level. Leave
 `cluster_artifact_registry_readers` alone: pulling is a separate identity and a
 separate change. The account email does not exist until the federated user is
 applied, so deliver this in two reviewed applies: first the federated user, then
@@ -248,7 +248,7 @@ comments. The Infracost workflow publishes estimates, not Terraform plan JSON.
 
 ## Private Python package index
 
-`python-internal` (Artifact Registry, format PYTHON, `southamerica-west1`) is created by the
+The private Python repository (Artifact Registry, format PYTHON; location and repository ID come from sensitive workspace variables, with no defaults) is created by the
 bootstrap root and read by the main root through a second instance of `configs/artifact-registry`.
 Terraform Cloud variables `python_artifact_registry_writers` and `python_artifact_registry_readers`
 map non-secret aliases to explicit user, group or service-account principals; public principals are
