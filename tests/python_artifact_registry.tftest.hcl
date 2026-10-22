@@ -38,3 +38,25 @@ run "python_repository_rejects_public_reader" {
   }
   expect_failures = [var.cluster_artifact_registry_readers]
 }
+
+run "python_repository_supports_multiple_readers_without_writer_rights" {
+  command = plan
+  module {
+    source = "./configs/artifact-registry"
+  }
+  variables {
+    cluster_artifact_registry_readers = {
+      owner   = "user:owner@example.com"
+      cluster = "serviceAccount:cluster@example-project.iam.gserviceaccount.com"
+    }
+  }
+
+  assert {
+    condition     = length(google_artifact_registry_repository_iam_member.cluster_internal_image_reader) == 2 && alltrue([for m in values(google_artifact_registry_repository_iam_member.cluster_internal_image_reader) : m.role == "roles/artifactregistry.reader"])
+    error_message = "Each reader alias gets exactly one repository-scoped reader member and no other role."
+  }
+  assert {
+    condition     = length(google_artifact_registry_repository_iam_member.cluster_internal_image_writer) == 1
+    error_message = "Adding readers must not add writers."
+  }
+}
