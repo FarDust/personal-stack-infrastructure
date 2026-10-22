@@ -37,6 +37,21 @@ run "creation_only_and_bucket_scoped_management" {
   }
 }
 
+run "private_python_repository_is_protected_and_executor_scoped" {
+  command = apply
+  module {
+    source = "./bootstrap/storage"
+  }
+  assert {
+    condition     = google_artifact_registry_repository.python_internal.format == "PYTHON" && google_artifact_registry_repository.python_internal.location == "southamerica-west1" && google_artifact_registry_repository.python_internal.repository_id == "python-internal" && google_artifact_registry_repository.python_internal.deletion_policy == "PREVENT"
+    error_message = "Bootstrap must own the protected private Python repository in the Santiago location."
+  }
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.terraform_executor_python_manager.repository == google_artifact_registry_repository.python_internal.name && google_artifact_registry_repository_iam_member.terraform_executor_python_manager.role == google_project_iam_custom_role.artifact_registry_repository_iam_manager.name && issensitive(google_artifact_registry_repository_iam_member.terraform_executor_python_manager.member)
+    error_message = "The executor receives only the repository IAM manager role, scoped to the Python repository."
+  }
+}
+
 run "reject_public_bootstrap_principal" {
   command = plan
   module {

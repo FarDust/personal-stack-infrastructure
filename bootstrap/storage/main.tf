@@ -68,3 +68,20 @@ resource "google_artifact_registry_repository_iam_member" "terraform_executor_ma
   role       = google_project_iam_custom_role.artifact_registry_repository_iam_manager.name
   member     = var.terraform_executor
 }
+
+resource "google_artifact_registry_repository" "python_internal" {
+  project         = var.project_id
+  location        = var.python_artifact_registry_location
+  repository_id   = var.python_artifact_registry_repository_id
+  description     = "Private Python packages for internal tooling"
+  format          = "PYTHON"
+  deletion_policy = "PREVENT"
+}
+
+resource "google_artifact_registry_repository_iam_member" "terraform_executor_python_manager" {
+  project    = google_artifact_registry_repository.python_internal.project
+  location   = google_artifact_registry_repository.python_internal.location
+  repository = google_artifact_registry_repository.python_internal.name
+  role       = google_project_iam_custom_role.artifact_registry_repository_iam_manager.name
+  member     = var.terraform_executor
+}

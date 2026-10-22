@@ -245,3 +245,13 @@ verification; retain the root module label when preserving its state addresses.
 Normal Terraform output redacts the owner and bucket inputs. Raw plan JSON and
 state still contain sensitive values; never publish them as CI artifacts or PR
 comments. The Infracost workflow publishes estimates, not Terraform plan JSON.
+
+## Private Python package index
+
+`python-internal` (Artifact Registry, format PYTHON, `southamerica-west1`) is created by the
+bootstrap root and read by the main root through a second instance of `configs/artifact-registry`.
+Terraform Cloud variables `python_artifact_registry_writers` and `python_artifact_registry_readers`
+map non-secret aliases to explicit user, group or service-account principals; public principals are
+rejected. The sensitive output `python_artifact_registry_repository_url` is the pip/uv simple-index
+URL. Consumers authenticate with short-lived OAuth tokens (ADC, workload identity or the Keycloak
+workload federation), never static keys.

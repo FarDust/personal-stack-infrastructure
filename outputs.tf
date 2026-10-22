@@ -28,6 +28,12 @@ output "cluster_artifact_registry_repository_url" {
   sensitive   = true
 }
 
+output "python_artifact_registry_repository_url" {
+  description = "Private Python simple-index URL (Artifact Registry) for internal packages; authenticate with an OAuth token, never a static key."
+  value       = "https://${var.python_artifact_registry_location}-python.pkg.dev/${var.project_id}/${var.python_artifact_registry_repository_id}/simple/"
+  sensitive   = true
+}
+
 data "google_iam_workload_identity_pool_provider" "github" {
   project                            = var.project_id
   workload_identity_pool_id          = "github-${var.identity_pool_id}"

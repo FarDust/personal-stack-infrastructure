@@ -44,3 +44,27 @@ variable "cluster_artifact_registry_repository_id" {
     error_message = "The repository ID must be 3-63 lowercase letters, numbers, or hyphens and start with a letter."
   }
 }
+
+variable "python_artifact_registry_location" {
+  type        = string
+  description = "Artifact Registry location for the private internal Python repository."
+  default     = "southamerica-west1"
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[a-z]+-[a-z]+[0-9]+$", lower(var.python_artifact_registry_location)))
+    error_message = "Provide a regional Artifact Registry location and review its cost before deployment."
+  }
+}
+
+variable "python_artifact_registry_repository_id" {
+  type        = string
+  description = "Artifact Registry repository ID for the private internal Python repository."
+  default     = "python-internal"
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{2,62}$", var.python_artifact_registry_repository_id))
+    error_message = "The repository ID must be 3-63 lowercase letters, numbers, or hyphens and start with a letter."
+  }
+}
