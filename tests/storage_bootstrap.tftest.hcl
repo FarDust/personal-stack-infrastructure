@@ -4,6 +4,11 @@ variables {
   project_id           = "example-project"
   artifact_bucket_name = "example-private-artifacts"
   terraform_executor   = "serviceAccount:terraform@example-project.iam.gserviceaccount.com"
+
+  cluster_artifact_registry_location      = "example-region1"
+  cluster_artifact_registry_repository_id = "example-image-repo"
+  python_artifact_registry_location       = "example-region1"
+  python_artifact_registry_repository_id  = "example-python-repo"
 }
 
 run "creation_only_and_bucket_scoped_management" {
@@ -24,15 +29,15 @@ run "creation_only_and_bucket_scoped_management" {
     error_message = "The runtime principal must remain sensitive."
   }
   assert {
-    condition     = google_artifact_registry_repository.cluster_internal_images.format == "DOCKER" && google_artifact_registry_repository.cluster_internal_images.location == "southamerica-west1" && google_artifact_registry_repository.cluster_internal_images.repository_id == "cluster-internal-images" && google_artifact_registry_repository.cluster_internal_images.deletion_policy == "PREVENT"
-    error_message = "Bootstrap must own the protected private Docker repository in the configured Santiago location."
+    condition     = google_artifact_registry_repository.cluster_internal_images.format == "DOCKER" && google_artifact_registry_repository.cluster_internal_images.location == "example-region1" && google_artifact_registry_repository.cluster_internal_images.repository_id == "example-image-repo" && google_artifact_registry_repository.cluster_internal_images.deletion_policy == "PREVENT"
+    error_message = "Bootstrap must own the protected private Docker repository in the configured location."
   }
   assert {
     condition     = toset(google_project_iam_custom_role.artifact_registry_repository_iam_manager.permissions) == toset(["artifactregistry.repositories.get", "artifactregistry.repositories.getIamPolicy", "artifactregistry.repositories.setIamPolicy"])
     error_message = "The executor's custom Artifact Registry role must contain only repository lookup and IAM-policy permissions."
   }
   assert {
-    condition     = google_artifact_registry_repository_iam_member.terraform_executor_manager.project == "example-project" && google_artifact_registry_repository_iam_member.terraform_executor_manager.location == "southamerica-west1" && google_artifact_registry_repository_iam_member.terraform_executor_manager.repository == google_artifact_registry_repository.cluster_internal_images.name && google_artifact_registry_repository_iam_member.terraform_executor_manager.role == google_project_iam_custom_role.artifact_registry_repository_iam_manager.name && nonsensitive(google_artifact_registry_repository_iam_member.terraform_executor_manager.member) == "serviceAccount:terraform@example-project.iam.gserviceaccount.com" && issensitive(google_artifact_registry_repository_iam_member.terraform_executor_manager.member)
+    condition     = google_artifact_registry_repository_iam_member.terraform_executor_manager.project == "example-project" && google_artifact_registry_repository_iam_member.terraform_executor_manager.location == "example-region1" && google_artifact_registry_repository_iam_member.terraform_executor_manager.repository == google_artifact_registry_repository.cluster_internal_images.name && google_artifact_registry_repository_iam_member.terraform_executor_manager.role == google_project_iam_custom_role.artifact_registry_repository_iam_manager.name && nonsensitive(google_artifact_registry_repository_iam_member.terraform_executor_manager.member) == "serviceAccount:terraform@example-project.iam.gserviceaccount.com" && issensitive(google_artifact_registry_repository_iam_member.terraform_executor_manager.member)
     error_message = "The executor's repository IAM manager role must be an additive grant scoped to the designated repository."
   }
 }
@@ -43,8 +48,8 @@ run "private_python_repository_is_protected_and_executor_scoped" {
     source = "./bootstrap/storage"
   }
   assert {
-    condition     = google_artifact_registry_repository.python_internal.format == "PYTHON" && google_artifact_registry_repository.python_internal.location == "southamerica-west1" && google_artifact_registry_repository.python_internal.repository_id == "python-internal" && google_artifact_registry_repository.python_internal.deletion_policy == "PREVENT"
-    error_message = "Bootstrap must own the protected private Python repository in the Santiago location."
+    condition     = google_artifact_registry_repository.python_internal.format == "PYTHON" && google_artifact_registry_repository.python_internal.location == "example-region1" && google_artifact_registry_repository.python_internal.repository_id == "example-python-repo" && google_artifact_registry_repository.python_internal.deletion_policy == "PREVENT"
+    error_message = "Bootstrap must own the protected private Python repository in the configured location."
   }
   assert {
     condition     = google_artifact_registry_repository_iam_member.terraform_executor_python_manager.repository == google_artifact_registry_repository.python_internal.name && google_artifact_registry_repository_iam_member.terraform_executor_python_manager.role == google_project_iam_custom_role.artifact_registry_repository_iam_manager.name && issensitive(google_artifact_registry_repository_iam_member.terraform_executor_python_manager.member)

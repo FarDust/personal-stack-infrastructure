@@ -8,8 +8,8 @@ variables {
   cluster_artifact_registry_readers = {
     cluster = "serviceAccount:cluster@example-project.iam.gserviceaccount.com"
   }
-  cluster_artifact_registry_location      = "southamerica-west1"
-  cluster_artifact_registry_repository_id = "cluster-internal-images"
+  cluster_artifact_registry_location      = "example-region1"
+  cluster_artifact_registry_repository_id = "example-image-repo"
 }
 
 run "private_cluster_image_repository" {
@@ -19,7 +19,7 @@ run "private_cluster_image_repository" {
   }
 
   assert {
-    condition     = data.google_artifact_registry_repository.cluster_internal_images.project == "example-project" && data.google_artifact_registry_repository.cluster_internal_images.location == "southamerica-west1" && data.google_artifact_registry_repository.cluster_internal_images.repository_id == "cluster-internal-images"
+    condition     = data.google_artifact_registry_repository.cluster_internal_images.project == "example-project" && data.google_artifact_registry_repository.cluster_internal_images.location == "example-region1" && data.google_artifact_registry_repository.cluster_internal_images.repository_id == "example-image-repo"
     error_message = "The main configuration must read the exact bootstrap-owned private repository."
   }
 
@@ -84,7 +84,7 @@ run "single_federated_writer_has_no_reader_or_other_grant" {
   }
 
   assert {
-    condition     = google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].repository == data.google_artifact_registry_repository.cluster_internal_images.name && google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].location == "southamerica-west1"
+    condition     = google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].repository == data.google_artifact_registry_repository.cluster_internal_images.name && google_artifact_registry_repository_iam_member.cluster_internal_image_writer["publisher"].location == "example-region1"
     error_message = "The writer grant must stay on the exact repository and location."
   }
 

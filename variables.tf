@@ -101,7 +101,6 @@ variable "workspace_backup_writer_service_account_id" {
 variable "cluster_artifact_registry_location" {
   type        = string
   description = "Artifact Registry location for private cluster Docker images, supplied by Terraform Cloud."
-  default     = "southamerica-west1"
   sensitive   = false
   nullable    = false
 
@@ -114,7 +113,6 @@ variable "cluster_artifact_registry_location" {
 variable "cluster_artifact_registry_repository_id" {
   type        = string
   description = "Artifact Registry repository ID for private cluster Docker images."
-  default     = "cluster-internal-images"
   sensitive   = false
   nullable    = false
 
@@ -153,8 +151,7 @@ variable "cluster_artifact_registry_readers" {
 variable "python_artifact_registry_location" {
   type        = string
   description = "Artifact Registry location for the private internal Python repository, supplied by Terraform Cloud."
-  default     = "southamerica-west1"
-  sensitive   = false
+  sensitive   = true
   nullable    = false
 
   validation {
@@ -166,8 +163,7 @@ variable "python_artifact_registry_location" {
 variable "python_artifact_registry_repository_id" {
   type        = string
   description = "Artifact Registry repository ID for the private internal Python repository."
-  default     = "python-internal"
-  sensitive   = false
+  sensitive   = true
   nullable    = false
 
   validation {

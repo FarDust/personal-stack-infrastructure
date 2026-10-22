@@ -102,7 +102,7 @@ run "lifecycle_rule_is_prefix_scoped_to_noncurrent_versions" {
   }
 
   variables {
-    artifact_bucket_location = "southamerica-west1"
+    artifact_bucket_location = "example-region1"
     artifact_bucket_writers  = {}
     noncurrent_version_expiry = {
       loki = {
@@ -126,7 +126,7 @@ run "no_lifecycle_rule_by_default" {
   }
 
   variables {
-    artifact_bucket_location = "southamerica-west1"
+    artifact_bucket_location = "example-region1"
     artifact_bucket_writers  = {}
   }
 
@@ -144,7 +144,7 @@ run "rejects_bucket_wide_lifecycle_rule" {
   }
 
   variables {
-    artifact_bucket_location = "southamerica-west1"
+    artifact_bucket_location = "example-region1"
     artifact_bucket_writers  = {}
     noncurrent_version_expiry = {
       all = {
