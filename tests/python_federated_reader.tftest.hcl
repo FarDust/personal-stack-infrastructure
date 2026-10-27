@@ -74,6 +74,14 @@ run "reject_secrets_identity" {
   expect_failures = [var.python_artifact_registry_federated_readers]
 }
 
+run "reject_existing_reader_under_different_alias" {
+  command = plan
+  variables {
+    python_artifact_registry_readers = { legacy_reader = "serviceAccount:example-reader-fa@example-project.iam.gserviceaccount.com" }
+  }
+  expect_failures = [google_artifact_registry_repository_iam_member.python_federated_reader]
+}
+
 run "reject_python_writer_under_different_alias" {
   command = plan
   variables {

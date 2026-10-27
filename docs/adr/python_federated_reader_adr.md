@@ -28,6 +28,10 @@ existing maintained mechanism. These alternatives are not selected.
 Configure the main workspace only; bootstrap has no change. Keep the selected
 account absent from writer maps and other privilege grants. Preserve existing
 reader entries and avoid declaring the same principal through both reader paths.
+A separate precondition rejects a selected principal already present in the
+existing Python reader map, regardless of alias. This keeps one Terraform state
+owner for each repository/role/member tuple and prevents one path deleting a
+membership still declared by the other.
 The reader lifecycle precondition compares the selected service-account email
 exported by the shared module against all privileged principals managed by this
 root: Python and image registry writers, bucket writers, the secrets account,
@@ -47,7 +51,8 @@ download costs still require review under the existing budget gate.
 ## Verification
 
 Mock tests cover the repository-scoped reader, empty selection, malformed aliases,
-wrong owner, multiple repositories, and differently aliased writer overlaps.
+wrong owner, multiple repositories, differently aliased writer overlaps, and
+duplicate reader ownership.
 Existing shared-module tests cover exact repository impersonation and
 unchanged owner conditions. Local tests establish source behavior only. Before
 deployment, review a full HCP plan for one account, one impersonation member and

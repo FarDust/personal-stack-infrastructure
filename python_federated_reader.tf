@@ -30,6 +30,10 @@ resource "google_artifact_registry_repository_iam_member" "python_federated_read
 
   lifecycle {
     precondition {
+      condition     = !contains(values(var.python_artifact_registry_readers), "serviceAccount:${module.github-identity-federation.federated-github-users[each.key].federated-user.email}")
+      error_message = "A Python reader membership must have one state owner; remove overlap with the existing reader map before selecting this identity."
+    }
+    precondition {
       condition = !contains(concat(
         values(var.python_artifact_registry_writers),
         values(var.cluster_artifact_registry_writers),
