@@ -72,6 +72,10 @@ run "provision_before_revocation" {
   module {
     source = "./configs/panel-backup-storage"
   }
+  assert {
+    condition     = google_storage_managed_folder_iam_member.panel_backup[0].member == "serviceAccount:${google_service_account.panel_backup[0].email}" && google_storage_managed_folder_iam_member.panel_backup[0].role == google_project_iam_custom_role.panel_backup[0].name && google_storage_managed_folder_iam_member.panel_backup[0].bucket == var.bucket_name && google_storage_managed_folder_iam_member.panel_backup[0].managed_folder == var.folder_path
+    error_message = "The grant must bind the dedicated identity and custom role to the configured bucket and folder."
+  }
 }
 
 run "revocation_retains_folder_and_disables_identity" {
