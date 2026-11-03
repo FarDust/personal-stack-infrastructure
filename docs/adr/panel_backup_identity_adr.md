@@ -16,7 +16,7 @@ Bucket-level object roles would grant access to unrelated objects. Sharing an ex
 
 ## Consequences
 
-The managed folder and custom role have deletion protection. This module does not change the bucket, lifecycle or other IAM members. Real XML multipart interoperability, sibling-prefix denial and restore behavior require live verification after the reviewed apply.
+The managed folder and custom role have deletion protection. When the configured panel bucket is the shared artifact bucket, its UUID prefix receives a lifecycle rule deleting only noncurrent versions after one day. Existing lifecycle rules are preserved. The bucket's soft-delete policy then applies independently; it does not shorten live backup retention. Real XML multipart interoperability, sibling-prefix denial and restore behavior require live verification after the reviewed apply.
 
 ## Verification
 

@@ -25,12 +25,17 @@ module "storage" {
   artifact_bucket_name     = var.artifact_bucket_name
   artifact_bucket_writers  = var.artifact_bucket_writers
 
-  noncurrent_version_expiry = var.loki_storage_folder_path == "" ? {} : {
+  noncurrent_version_expiry = merge(var.loki_storage_folder_path == "" ? {} : {
     loki = {
       prefix = var.loki_storage_folder_path
       days   = var.loki_noncurrent_version_days
     }
-  }
+    }, var.panel_backup_folder_path != "" && var.panel_backup_bucket_name == var.artifact_bucket_name ? {
+    panel = {
+      prefix = var.panel_backup_folder_path
+      days   = 1
+    }
+  } : {})
 }
 
 module "wallet_signing" {

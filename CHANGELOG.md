@@ -6,6 +6,8 @@ This repository's releases follow Semantic Versioning once tagged.
 
 ### Added
 
+- Prefix-scoped expiry of noncurrent panel backup versions in the shared bucket, preserving other prefixes and soft deletion.
+
 - Optional dedicated panel backup identity scoped to one managed folder, without storing HMAC secrets in Terraform state.
 
 - `configs/loki-storage`: dedicated Loki service account with `roles/storage.objectAdmin` on the managed folder `loki/cluster/` only.
