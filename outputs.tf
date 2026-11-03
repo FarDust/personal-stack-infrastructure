@@ -65,3 +65,8 @@ output "loki_storage_managed_folder_path" {
   value       = module.loki_storage.managed_folder_path
   sensitive   = true
 }
+output "wallet_signer_service_account_email" {
+  description = "Dedicated Wallet issuer Developer identity; no private key is created."
+  value       = module.wallet_signing.signer_service_account_email
+  sensitive   = true
+}

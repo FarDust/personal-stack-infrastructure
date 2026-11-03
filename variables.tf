@@ -233,3 +233,26 @@ variable "loki_noncurrent_version_days" {
     error_message = "Use a whole number of days, at least 1."
   }
 }
+variable "wallet_signer_service_account_id" {
+  description = "Dedicated Wallet pass signing service-account identifier from workspace configuration."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = length(var.wallet_signer_members) == 0 || can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.wallet_signer_service_account_id))
+    error_message = "Wallet signing requires a valid dedicated service-account identifier."
+  }
+}
+
+variable "wallet_signer_members" {
+  description = "Explicit principals allowed to sign personal Wallet passes. Empty disables the module."
+  type        = list(string)
+  sensitive   = true
+  default     = []
+
+  validation {
+    condition     = length(distinct(var.wallet_signer_members)) == length(var.wallet_signer_members) && alltrue([for member in var.wallet_signer_members : can(regex("^(user|serviceAccount):[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", member))])
+    error_message = "Wallet signers must be distinct explicit user or service-account email principals."
+  }
+}

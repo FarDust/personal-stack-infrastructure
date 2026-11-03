@@ -33,6 +33,13 @@ module "storage" {
   }
 }
 
+module "wallet_signing" {
+  source                    = "./configs/wallet-signing"
+  project_id                = var.project_id
+  signer_service_account_id = var.wallet_signer_service_account_id
+  signer_members            = var.wallet_signer_members
+}
+
 module "workspace_backup_storage" {
   source                        = "./configs/workspace-backup-storage"
   project_id                    = var.project_id
