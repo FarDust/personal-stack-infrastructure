@@ -6,7 +6,7 @@ The panel stores backup objects under a server UUID followed by the backup UUID.
 
 ## Decision
 
-Create a dedicated service account and a managed folder for one configured server UUID. Bind a custom role to that folder only, containing object create, get, list and delete plus multipart create, abort and list-parts. The bucket and UUID are sensitive workspace inputs. Empty configuration disables the module. A second server requires an independently reviewed scope change.
+Create a dedicated service account and a managed folder for one configured server UUID. Bind a custom role to that folder only, containing object create, get, list and delete plus multipart create, abort and list-parts. The bucket and UUID are sensitive workspace inputs. Empty configuration avoids initial creation; once created, retain the folder path and set `panel_backup_grant_enabled` false to disable the account and remove its folder grant without deleting protected resources. A second server requires an independently reviewed scope change.
 
 HMAC key creation and custody are outside Terraform: the one-time secret must not enter Terraform state. The deployment workflow provisions it only after approved secure custody is ready. The service account cannot administer IAM or HMAC keys.
 

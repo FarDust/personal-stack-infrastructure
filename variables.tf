@@ -112,6 +112,13 @@ variable "panel_backup_folder_path" {
   }
 }
 
+variable "panel_backup_grant_enabled" {
+  type        = bool
+  description = "Grant folder access and enable the backup service account. Set false to revoke access while retaining the managed folder."
+  default     = true
+  nullable    = false
+}
+
 variable "workspace_backup_writer_service_account_id" {
   type        = string
   description = "The generic account ID for the workspace-backup writer identity."

@@ -49,11 +49,13 @@ module "workspace_backup_storage" {
 }
 
 module "panel_backup_storage" {
-  source      = "./configs/panel-backup-storage"
-  enabled     = nonsensitive(var.panel_backup_folder_path != "")
-  project_id  = var.project_id
-  bucket_name = var.panel_backup_bucket_name
-  folder_path = var.panel_backup_folder_path
+  source        = "./configs/panel-backup-storage"
+  enabled       = nonsensitive(var.panel_backup_folder_path != "")
+  project_id    = var.project_id
+  bucket_name   = var.panel_backup_bucket_name
+  folder_path   = var.panel_backup_folder_path
+  grant_enabled = var.panel_backup_grant_enabled
+  depends_on    = [module.storage]
 }
 
 module "cluster_artifact_registry" {

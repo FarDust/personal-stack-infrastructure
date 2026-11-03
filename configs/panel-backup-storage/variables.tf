@@ -3,6 +3,12 @@ variable "enabled" {
   nullable = false
 }
 
+variable "grant_enabled" {
+  type     = bool
+  default  = true
+  nullable = false
+}
+
 variable "project_id" {
   type      = string
   sensitive = true

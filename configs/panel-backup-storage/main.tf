@@ -4,6 +4,7 @@ resource "google_service_account" "panel_backup" {
   account_id   = var.service_account_id
   display_name = "Panel backup writer"
   description  = "Writes and restores backups in the configured managed folder."
+  disabled     = !var.grant_enabled
 }
 
 resource "google_project_iam_custom_role" "panel_backup" {
@@ -40,7 +41,7 @@ resource "google_storage_managed_folder" "panel_backup" {
 }
 
 resource "google_storage_managed_folder_iam_member" "panel_backup" {
-  count          = var.enabled ? 1 : 0
+  count          = var.enabled && var.grant_enabled ? 1 : 0
   bucket         = google_storage_managed_folder.panel_backup[0].bucket
   managed_folder = google_storage_managed_folder.panel_backup[0].name
   role           = google_project_iam_custom_role.panel_backup[0].name

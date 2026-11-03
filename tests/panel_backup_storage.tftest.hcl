@@ -66,3 +66,24 @@ run "rejects_enabled_empty_folder" {
   }
   expect_failures = [google_storage_managed_folder.panel_backup]
 }
+
+run "provision_before_revocation" {
+  command = apply
+  module {
+    source = "./configs/panel-backup-storage"
+  }
+}
+
+run "revocation_retains_folder_and_disables_identity" {
+  command = plan
+  module {
+    source = "./configs/panel-backup-storage"
+  }
+  variables {
+    grant_enabled = false
+  }
+  assert {
+    condition     = google_service_account.panel_backup[0].disabled && length(google_storage_managed_folder_iam_member.panel_backup) == 0 && length(google_storage_managed_folder.panel_backup) == 1 && length(google_project_iam_custom_role.panel_backup) == 1
+    error_message = "Revocation must disable the account and remove its grant while retaining protected resources."
+  }
+}
