@@ -2,22 +2,6 @@ locals {
   enabled = nonsensitive(length(var.signer_members)) > 0
 }
 
-resource "google_project_service" "wallet" {
-  count = local.enabled ? 1 : 0
-
-  project            = var.project_id
-  service            = "walletobjects.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "iam_credentials" {
-  count = local.enabled ? 1 : 0
-
-  project            = var.project_id
-  service            = "iamcredentials.googleapis.com"
-  disable_on_destroy = false
-}
-
 resource "google_service_account" "wallet_signer" {
   count = local.enabled ? 1 : 0
 

@@ -2,7 +2,8 @@ mock_provider "google" {
   mock_resource "google_service_account" {
     override_during = plan
     defaults = {
-      name = "projects/example-project/serviceAccounts/example-wallet-signer@example-project.iam.gserviceaccount.com"
+      name  = "projects/example-project/serviceAccounts/example-wallet-signer@example-project.iam.gserviceaccount.com"
+      email = "example-wallet-signer@example-project.iam.gserviceaccount.com"
     }
   }
 }
@@ -31,8 +32,8 @@ run "signing_is_scoped_to_one_identity_and_one_permission" {
   }
 
   assert {
-    condition     = google_project_service.wallet[0].service == "walletobjects.googleapis.com" && !google_project_service.wallet[0].disable_on_destroy && google_project_service.iam_credentials[0].service == "iamcredentials.googleapis.com" && !google_project_service.iam_credentials[0].disable_on_destroy
-    error_message = "Required APIs must remain enabled when the optional module is removed."
+    condition     = output.signer_service_account_email == "example-wallet-signer@example-project.iam.gserviceaccount.com"
+    error_message = "Issuer setup must receive the dedicated signer's actual email."
   }
 }
 
@@ -48,7 +49,7 @@ run "empty_signers_provision_nothing" {
   }
 
   assert {
-    condition     = length(google_service_account.wallet_signer) == 0 && length(google_service_account_iam_member.wallet_blob_signer) == 0 && length(google_project_iam_custom_role.wallet_blob_signer) == 0 && length(google_project_service.wallet) == 0 && length(google_project_service.iam_credentials) == 0
+    condition     = length(google_service_account.wallet_signer) == 0 && length(google_service_account_iam_member.wallet_blob_signer) == 0 && length(google_project_iam_custom_role.wallet_blob_signer) == 0
     error_message = "No signing resources may be created without an explicit caller."
   }
 }

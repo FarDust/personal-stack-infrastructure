@@ -10,6 +10,12 @@ and add that identity as a Developer in the Google Wallet issuer console. Use
 Google Auth's IAM signer with the caller's existing credential; keep signed save
 links and source barcodes outside public logs and repositories.
 
+The IAM Credentials API must already be available for remote signing. This module
+does not administer project services. A signed save link carrying the class and
+object was verified end to end without enabling the Wallet REST API in the signing
+project. Enable that API through the separate privileged provisioning workflow
+only if a consumer actually needs Wallet REST operations.
+
 Issuer demo mode is sufficient for the issuer's administrators, developers, and
 configured test recipients. Saving still uses Google's own confirmation flow.
 
