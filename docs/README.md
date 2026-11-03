@@ -2,6 +2,8 @@
 
 ## Storage and access
 
+- [ADR: panel backup identity](adr/panel_backup_identity_adr.md): dedicated managed-folder identity and HMAC custody boundary.
+
 - [Shared artifacts](shared-artifacts.md): bucket, federation, registry, cost and delivery workflow.
 - [Workspace backup storage](workspace-backup-storage.md): managed-folder backup writer.
 - [Personal Wallet signing](wallet-signing.md): optional keyless pass signing and issuer setup.

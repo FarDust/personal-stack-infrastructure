@@ -86,6 +86,32 @@ variable "workspace_backup_folder_paths" {
   }
 }
 
+variable "panel_backup_bucket_name" {
+  type        = string
+  description = "Private bucket holding panel backups, supplied by Terraform Cloud."
+  default     = ""
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = var.panel_backup_folder_path == "" || length(var.panel_backup_bucket_name) >= 3
+    error_message = "A bucket name is required when panel backups are enabled."
+  }
+}
+
+variable "panel_backup_folder_path" {
+  type        = string
+  description = "Server UUID and trailing slash identifying the managed backup folder; empty disables it."
+  default     = ""
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = var.panel_backup_folder_path == "" || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/$", var.panel_backup_folder_path))
+    error_message = "Use an empty value or one lowercase server UUID followed by a slash."
+  }
+}
+
 variable "workspace_backup_writer_service_account_id" {
   type        = string
   description = "The generic account ID for the workspace-backup writer identity."

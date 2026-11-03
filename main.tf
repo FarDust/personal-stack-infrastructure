@@ -48,6 +48,14 @@ module "workspace_backup_storage" {
   writer_service_account_id     = var.workspace_backup_writer_service_account_id
 }
 
+module "panel_backup_storage" {
+  source      = "./configs/panel-backup-storage"
+  enabled     = nonsensitive(var.panel_backup_folder_path != "")
+  project_id  = var.project_id
+  bucket_name = var.panel_backup_bucket_name
+  folder_path = var.panel_backup_folder_path
+}
+
 module "cluster_artifact_registry" {
   source                                  = "./configs/artifact-registry"
   project_id                              = var.project_id
