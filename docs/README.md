@@ -2,6 +2,8 @@
 
 ## Storage and access
 
+- [ADR: dedicated federated Python reader](adr/python_federated_reader_adr.md): private workspace inputs, repository-only reader access, and live acceptance gates. Implemented in `python_federated_reader.tf`; tested in `tests/python_federated_reader.tftest.hcl`.
+
 - [Shared artifacts](shared-artifacts.md): bucket, federation, registry, cost and delivery workflow.
 - [Workspace backup storage](workspace-backup-storage.md): managed-folder backup writer.
 - [Personal Wallet signing](wallet-signing.md): optional keyless pass signing and issuer setup.
