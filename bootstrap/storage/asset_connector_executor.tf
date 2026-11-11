@@ -75,18 +75,14 @@ resource "google_project_iam_member" "asset_connector_alert_policy_editor" {
   member  = var.terraform_executor
 }
 
-# Attach the connector identity to the VM: user of that one service account only.
-resource "google_project_iam_member" "asset_connector_identity_user" {
-  count   = local.connector_enabled ? 1 : 0
-  project = var.project_id
-  role    = "roles/iam.serviceAccountUser"
-  member  = var.terraform_executor
-
-  condition {
-    title       = "asset_connector_identity_only"
-    description = "Act as the connector VM identity only."
-    expression  = "resource.name.endsWith(${jsonencode("/serviceAccounts/asset-connector@${var.project_id}.iam.gserviceaccount.com")})"
-  }
+# Attach the connector identity to the VM: user of that one service account only. Bound on the
+# service account resource itself (a project-level condition on the name is not honoured by the
+# compute actAs check, which failed on the first attempt).
+resource "google_service_account_iam_member" "asset_connector_identity_user" {
+  count              = local.connector_enabled ? 1 : 0
+  service_account_id = "projects/${var.project_id}/serviceAccounts/asset-connector@${var.project_id}.iam.gserviceaccount.com"
+  role               = "roles/iam.serviceAccountUser"
+  member             = var.terraform_executor
 }
 
 # Manage the connector bucket and nothing else in Cloud Storage (second binding next to the

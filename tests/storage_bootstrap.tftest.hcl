@@ -81,8 +81,8 @@ run "asset_connector_roles_are_minimal_and_conditioned" {
     error_message = "Storage administration for the connector must be limited to its exact bucket."
   }
   assert {
-    condition     = nonsensitive(google_project_iam_member.asset_connector_identity_user[0].condition[0].expression) == "resource.name.endsWith(\"/serviceAccounts/asset-connector@example-project.iam.gserviceaccount.com\")"
-    error_message = "Acting as a service account must be limited to the connector identity."
+    condition     = nonsensitive(google_service_account_iam_member.asset_connector_identity_user[0].service_account_id) == "projects/example-project/serviceAccounts/asset-connector@example-project.iam.gserviceaccount.com" && google_service_account_iam_member.asset_connector_identity_user[0].role == "roles/iam.serviceAccountUser"
+    error_message = "Acting as a service account must be bound on the connector identity only."
   }
   assert {
     condition     = alltrue([for p in google_project_iam_custom_role.asset_connector_network_manager[0].permissions : can(regex("^compute\\.(networks|subnetworks|firewalls|globalOperations|regionOperations|zoneOperations)\\.", p)) && !can(regex("[Ii]am[Pp]olicy", p)) && !can(regex("instances", p))])
