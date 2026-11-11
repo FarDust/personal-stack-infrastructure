@@ -1,16 +1,17 @@
 mock_provider "google" {}
 
 variables {
-  project_id              = "example-project"
-  region                  = "us-west1"
-  zone                    = "us-west1-b"
-  bucket_name             = "example-assets"
-  cors_origin             = "https://app.example.test"
-  tailscale_version       = "1.0.0"
-  tailscale_sha256        = "0000000000000000000000000000000000000000000000000000000000000000"
-  nginx_version           = "1.0.0"
-  nginx_deb_sha256        = "0000000000000000000000000000000000000000000000000000000000000000"
-  nginx_common_deb_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+  project_id        = "example-project"
+  region            = "us-west1"
+  zone              = "us-west1-b"
+  bucket_name       = "example-assets"
+  cors_origin       = "https://app.example.test"
+  tailscale_version = "1.0.0"
+  tailscale_sha256  = "0000000000000000000000000000000000000000000000000000000000000000"
+  caddy_version     = "2.0.0"
+  caddy_sha512      = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  rclone_version    = "v1.0.0"
+  rclone_sha256     = "0000000000000000000000000000000000000000000000000000000000000000"
   tenants = {
     example-app = { writers = ["user:operator@example.com"] }
   }

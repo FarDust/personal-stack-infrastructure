@@ -337,21 +337,27 @@ variable "asset_connector_tailscale_sha256" {
   nullable    = false
 }
 
-variable "asset_connector_nginx_version" {
+variable "asset_connector_caddy_version" {
   type        = string
-  description = "Pinned Debian nginx package version staged in the asset bucket."
+  description = "Pinned Caddy release staged in the asset bucket."
   nullable    = false
 }
 
-variable "asset_connector_nginx_deb_sha256" {
+variable "asset_connector_caddy_sha512" {
   type        = string
-  description = "SHA-256 of the staged nginx package."
+  description = "SHA-512 of the pinned Caddy tarball."
   nullable    = false
 }
 
-variable "asset_connector_nginx_common_deb_sha256" {
+variable "asset_connector_rclone_version" {
   type        = string
-  description = "SHA-256 of the staged nginx-common package."
+  description = "Pinned rclone release staged in the asset bucket."
+  nullable    = false
+}
+
+variable "asset_connector_rclone_sha256" {
+  type        = string
+  description = "SHA-256 of the pinned rclone package."
   nullable    = false
 }
 

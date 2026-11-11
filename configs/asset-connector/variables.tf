@@ -81,30 +81,36 @@ variable "tailscale_sha256" {
   }
 }
 
-variable "nginx_version" {
+variable "caddy_version" {
   type        = string
-  description = "Pinned Debian nginx package version staged under bootstrap/ in the bucket."
+  description = "Pinned Caddy release staged under bootstrap/ in the bucket."
   nullable    = false
 }
 
-variable "nginx_deb_sha256" {
+variable "caddy_sha512" {
   type        = string
-  description = "SHA-256 of the staged nginx amd64 package."
+  description = "SHA-512 of the pinned Caddy linux_amd64 tarball, from the release checksums file."
   nullable    = false
 
   validation {
-    condition     = can(regex("^[0-9a-f]{64}$", var.nginx_deb_sha256))
-    error_message = "Provide a lowercase hex SHA-256."
+    condition     = can(regex("^[0-9a-f]{128}$", var.caddy_sha512))
+    error_message = "Provide a lowercase hex SHA-512."
   }
 }
 
-variable "nginx_common_deb_sha256" {
+variable "rclone_version" {
   type        = string
-  description = "SHA-256 of the staged nginx-common package."
+  description = "Pinned rclone release (for example v1.2.3) staged under bootstrap/ in the bucket."
+  nullable    = false
+}
+
+variable "rclone_sha256" {
+  type        = string
+  description = "SHA-256 of the pinned rclone linux-amd64 package, from the signed release checksums."
   nullable    = false
 
   validation {
-    condition     = can(regex("^[0-9a-f]{64}$", var.nginx_common_deb_sha256))
+    condition     = can(regex("^[0-9a-f]{64}$", var.rclone_sha256))
     error_message = "Provide a lowercase hex SHA-256."
   }
 }

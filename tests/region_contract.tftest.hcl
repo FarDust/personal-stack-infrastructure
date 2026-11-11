@@ -22,9 +22,10 @@ variables {
   asset_connector_cors_origin             = "https://app.example.test"
   asset_connector_tailscale_version       = "1.0.0"
   asset_connector_tailscale_sha256        = "0000000000000000000000000000000000000000000000000000000000000000"
-  asset_connector_nginx_version           = "1.0.0"
-  asset_connector_nginx_deb_sha256        = "0000000000000000000000000000000000000000000000000000000000000000"
-  asset_connector_nginx_common_deb_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+  asset_connector_caddy_version           = "2.0.0"
+  asset_connector_caddy_sha512            = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  asset_connector_rclone_version          = "v1.0.0"
+  asset_connector_rclone_sha256           = "0000000000000000000000000000000000000000000000000000000000000000"
   asset_connector_tenants                 = { example-app = { writers = [] } }
   cluster_artifact_registry_location      = "example-region1"
   cluster_artifact_registry_repository_id = "example-image-repo"

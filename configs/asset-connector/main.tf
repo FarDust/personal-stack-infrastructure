@@ -212,9 +212,10 @@ resource "google_compute_instance" "connector" {
     ts-tag                 = var.tailscale_tag
     ts-version             = var.tailscale_version
     ts-sha256              = var.tailscale_sha256
-    nginx-version          = var.nginx_version
-    nginx-deb-sha256       = var.nginx_deb_sha256
-    nginx-common-sha256    = var.nginx_common_deb_sha256
+    caddy-version          = var.caddy_version
+    caddy-sha512           = var.caddy_sha512
+    rclone-version         = var.rclone_version
+    rclone-sha256          = var.rclone_sha256
     asset-tenants          = join(",", nonsensitive(sort(keys(var.tenants))))
     ts-authkey-secret      = google_secret_manager_secret.tailscale_authkey.secret_id
   }

@@ -1,6 +1,7 @@
 #!/bin/bash
-# Idempotent boot script of the asset CDN node. IPv6-only VM: every download goes to
-# storage.googleapis.com through Private Google Access, never through an apt mirror.
+# Idempotent boot script of the asset CDN node: a local mirror of the tenant prefixes served by
+# Caddy over the tailnet. IPv6-only VM: every download goes to storage.googleapis.com through
+# Private Google Access, never through a package mirror.
 # Decision record: docs/adr/asset_connector_adr.md
 set -euo pipefail
 
@@ -12,9 +13,10 @@ CORS=$(mdv instance/attributes/asset-cors-origin)
 TAG=$(mdv instance/attributes/ts-tag)
 TSV=$(mdv instance/attributes/ts-version)
 TSSHA=$(mdv instance/attributes/ts-sha256)
-NGV=$(mdv instance/attributes/nginx-version)
-NGSHA=$(mdv instance/attributes/nginx-deb-sha256)
-NGCSHA=$(mdv instance/attributes/nginx-common-sha256)
+CADV=$(mdv instance/attributes/caddy-version)
+CADSHA=$(mdv instance/attributes/caddy-sha512)
+RCV=$(mdv instance/attributes/rclone-version)
+RCSHA=$(mdv instance/attributes/rclone-sha256)
 TENANTS=$(mdv instance/attributes/asset-tenants)
 SECRET=$(mdv instance/attributes/ts-authkey-secret)
 PROJECT=$(mdv project/project-id)
@@ -55,14 +57,21 @@ if [ ! -x /usr/local/bin/tailscaled ]; then
     "tailscale_${TSV}_amd64/tailscale" "tailscale_${TSV}_amd64/tailscaled"
 fi
 
-if ! command -v nginx >/dev/null; then
-  fetch "bootstrap/nginx-common_${NGV}_all.deb" "$work/nginx-common.deb"
-  fetch "bootstrap/nginx_${NGV}_amd64.deb" "$work/nginx.deb"
-  echo "$NGCSHA  $work/nginx-common.deb" | sha256sum -c -
-  echo "$NGSHA  $work/nginx.deb" | sha256sum -c -
-  DEBIAN_FRONTEND=noninteractive dpkg -i "$work/nginx-common.deb" "$work/nginx.deb"
+if [ ! -x /usr/local/bin/caddy ]; then
+  fetch "bootstrap/caddy_${CADV}_linux_amd64.tar.gz" "$work/caddy.tgz"
+  echo "$CADSHA  $work/caddy.tgz" | sha512sum -c -
+  tar -xzf "$work/caddy.tgz" -C /usr/local/bin caddy
 fi
 
+if ! command -v rclone >/dev/null; then
+  fetch "bootstrap/rclone-${RCV}-linux-amd64.deb" "$work/rclone.deb"
+  echo "$RCSHA  $work/rclone.deb" | sha256sum -c -
+  dpkg -i "$work/rclone.deb"
+fi
+
+id caddy >/dev/null 2>&1 || useradd --system --home /var/lib/caddy --create-home --shell /usr/sbin/nologin caddy
+
+# TS_PERMIT_CERT_UID lets the caddy user obtain the tailnet certificate for the node name.
 cat >/etc/systemd/system/tailscaled.service <<'UNIT'
 [Unit]
 Description=Tailscale node agent
@@ -70,6 +79,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+Environment=TS_PERMIT_CERT_UID=caddy
 ExecStart=/usr/local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641
 RuntimeDirectory=tailscale
 StateDirectory=tailscale
@@ -90,136 +100,170 @@ fi
 
 FQDN=$(/usr/local/bin/tailscale status --json | grep -m1 '"DNSName"' | sed -E 's/.*"DNSName": *"([^"]+)\.".*/\1/')
 
-# Tailnet certificate for the node name; renewed weekly by a timer.
-mkdir -p /etc/asset-cdn/tls /run/asset-cdn /var/lib/asset-cdn /var/cache/asset-cdn
-cat >/usr/local/bin/asset-cdn-cert <<CERT
-#!/bin/bash
-set -euo pipefail
-/usr/local/bin/tailscale cert --cert-file /etc/asset-cdn/tls/cert.pem --key-file /etc/asset-cdn/tls/key.pem $FQDN
-chmod 640 /etc/asset-cdn/tls/key.pem
-chgrp www-data /etc/asset-cdn/tls/key.pem
-if systemctl is-active --quiet nginx; then systemctl reload nginx; fi
-CERT
-chmod 755 /usr/local/bin/asset-cdn-cert
-/usr/local/bin/asset-cdn-cert
+mkdir -p /srv/assets/releases /srv/status /var/lib/asset-cdn /etc/caddy
+[ -e /srv/assets/current ] || { mkdir -p /srv/assets/releases/empty; ln -sfn /srv/assets/releases/empty /srv/assets/current; }
+echo "ok last_sync=never" >/srv/status/healthz
+: >/srv/status/metrics.prom
+chmod -R a+rX /srv
 
-# Short-lived bearer for the bucket, refreshed from the VM identity (no keys on disk).
-cat >/usr/local/bin/asset-cdn-token <<TOKEN
+# Mirror: checksum sync of every tenant prefix into a fresh hard-linked release, then an atomic
+# symlink swap. A failed sync leaves the previous release serving.
+cat >/usr/local/bin/asset-cdn-sync <<SYNC
 #!/bin/bash
 set -euo pipefail
-t=\$(curl -fsS -H 'Metadata-Flavor: Google' $MD/instance/service-accounts/default/token | sed -E 's/.*"access_token":"([^"]+)".*/\1/')
-umask 027
-printf 'proxy_set_header Authorization "Bearer %s";\n' "\$t" >/run/asset-cdn/auth.conf.tmp
-chgrp www-data /run/asset-cdn/auth.conf.tmp
-mv /run/asset-cdn/auth.conf.tmp /run/asset-cdn/auth.conf
-if systemctl is-active --quiet nginx; then systemctl reload nginx; fi
-TOKEN
-chmod 755 /usr/local/bin/asset-cdn-token
-/usr/local/bin/asset-cdn-token
+root=/srv/assets
+cur=\$(readlink -f \$root/current)
+new=\$root/releases/\$(date -u +%Y%m%dT%H%M%SZ).\$\$
+cp -al "\$cur" "\$new"
+trap 'rm -rf "\$new"' ERR
+for t in ${TENANTS//,/ }; do
+  mkdir -p "\$new/\$t"
+  rclone sync ":googlecloudstorage:$BUCKET/\$t" "\$new/\$t" --gcs-env-auth --gcs-bucket-policy-only --checksum --transfers 4 --retries 3
+done
+chmod -R a+rX "\$new"
+ln -sfn "\$new" \$root/current.tmp
+mv -T \$root/current.tmp \$root/current
+for old in \$(ls -1d \$root/releases/* | grep -v -e "\$new" -e "\$cur" || true); do rm -rf "\$old"; done
+now=\$(date +%s)
+echo "ok last_sync=\$now" >/srv/status/healthz
+files=\$(find "\$new" -type f | wc -l)
+bytes=\$(du -sb "\$new" | cut -f1)
+cat >/srv/status/mirror.prom <<PROM
+asset_cdn_mirror_last_success_unix \$now
+asset_cdn_mirror_files \$files
+asset_cdn_mirror_bytes \$bytes
+PROM
+chmod a+r /srv/status/*
+SYNC
+chmod 755 /usr/local/bin/asset-cdn-sync
 
-# Monthly egress and cache hit ratio from the access log, exposed for Prometheus on /_egress.
-cat >/usr/local/bin/asset-cdn-stats <<'STATS'
+# Monthly egress from the primary interface counter (what the cloud meters), kept across reboots.
+cat >/usr/local/bin/asset-cdn-egress <<'EGRESS'
 #!/bin/bash
 set -euo pipefail
+iface=$(ls /sys/class/net | grep -v -e '^lo$' -e '^tailscale' | head -1)
+tx=$(cat "/sys/class/net/$iface/statistics/tx_bytes")
 ym=$(date -u +%Y-%m)
-zcat -f /var/log/nginx/cdn.log* 2>/dev/null | awk -v ym="$ym" '
-  substr($1,1,7)==ym { bytes+=$3; if ($4=="HIT"||$4=="STALE"||$4=="UPDATING"||$4=="REVALIDATED") hit++; else if ($4=="MISS"||$4=="EXPIRED"||$4=="BYPASS") miss++ }
-  END {
-    printf "# TYPE asset_cdn_egress_bytes_month gauge\nasset_cdn_egress_bytes_month %d\n", bytes
-    printf "# TYPE asset_cdn_egress_free_ratio gauge\nasset_cdn_egress_free_ratio %.4f\n", bytes/1073741824
-    printf "# TYPE asset_cdn_cache_hit_ratio gauge\nasset_cdn_cache_hit_ratio %.4f\n", (hit+miss>0)?hit/(hit+miss):0
-  }' >/var/lib/asset-cdn/egress.prom.tmp
-mv /var/lib/asset-cdn/egress.prom.tmp /var/lib/asset-cdn/egress.prom
-STATS
-chmod 755 /usr/local/bin/asset-cdn-stats
+state=/var/lib/asset-cdn/egress.state
+read -r s_ym s_tx s_total 2>/dev/null <"$state" || { s_ym=$ym; s_tx=$tx; s_total=0; }
+[ "$s_ym" = "$ym" ] || { s_ym=$ym; s_total=0; }
+if [ "$tx" -ge "$s_tx" ]; then s_total=$((s_total + tx - s_tx)); else s_total=$((s_total + tx)); fi
+echo "$s_ym $tx $s_total" >"$state"
+{
+  echo "asset_cdn_egress_bytes_month $s_total"
+  awk -v t="$s_total" 'BEGIN { printf "asset_cdn_egress_free_ratio %.4f\n", t/1073741824 }'
+  cat /srv/status/mirror.prom
+} >/srv/status/metrics.prom.tmp
+chmod a+r /srv/status/metrics.prom.tmp
+mv /srv/status/metrics.prom.tmp /srv/status/metrics.prom
+EGRESS
+chmod 755 /usr/local/bin/asset-cdn-egress
 
-TENANT_RE=$(printf '%s' "$TENANTS" | tr ',' '|')
-rm -f /etc/nginx/sites-enabled/default
-cat >/etc/nginx/conf.d/asset-cdn.conf <<NGINX
-proxy_cache_path /var/cache/asset-cdn levels=1:2 keys_zone=assets:10m max_size=6g inactive=90d use_temp_path=off;
-log_format cdn '\$time_iso8601 \$status \$bytes_sent \$upstream_cache_status "\$request" \$request_time';
-resolver 169.254.169.254 valid=300s ipv6=off;
-
-server {
-	listen 443 ssl http2;
-	listen [::]:443 ssl http2;
-	server_name $FQDN;
-	ssl_certificate /etc/asset-cdn/tls/cert.pem;
-	ssl_certificate_key /etc/asset-cdn/tls/key.pem;
-	access_log /var/log/nginx/cdn.log cdn;
-	server_tokens off;
-
-	location = /healthz { default_type text/plain; return 200 "ok\n"; }
-	location = /_status { stub_status; }
-	location = /_egress { alias /var/lib/asset-cdn/egress.prom; default_type text/plain; }
-
-	location ~ ^/(?<tenant>$TENANT_RE)/(?<obj>.*[^/])\$ {
-		limit_except GET HEAD OPTIONS { deny all; }
-		if (\$request_method = OPTIONS) {
-			add_header Access-Control-Allow-Origin "$CORS" always;
-			add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS" always;
-			add_header Access-Control-Allow-Headers "Range, If-None-Match" always;
-			add_header Access-Control-Max-Age 86400 always;
-			return 204;
-		}
-		set \$upstream storage.googleapis.com;
-		include /run/asset-cdn/auth.conf;
-		proxy_set_header Host storage.googleapis.com;
-		proxy_set_header Cookie "";
-		slice 4m;
-		proxy_set_header Range \$slice_range;
-		proxy_cache assets;
-		proxy_cache_key \$uri\$slice_range;
-		proxy_cache_valid 200 206 1h;
-		proxy_cache_lock on;
-		proxy_cache_lock_timeout 30s;
-		proxy_cache_background_update on;
-		proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
-		proxy_http_version 1.1;
-		proxy_ssl_server_name on;
-		proxy_hide_header x-goog-hash;
-		proxy_hide_header x-guploader-uploadid;
-		add_header Access-Control-Allow-Origin "$CORS" always;
-		add_header Access-Control-Expose-Headers "Content-Length, Content-Range, ETag, Accept-Ranges" always;
-		add_header Vary Origin always;
-		add_header X-Cache \$upstream_cache_status always;
-		proxy_pass https://\$upstream/$BUCKET/\$tenant/\$obj;
+path_matchers=$(for t in ${TENANTS//,/ }; do printf '/%s/* ' "$t"; done)
+# One tailnet site: tenant prefixes only, read-only, no compression, immutable cache headers.
+cat >/etc/caddy/Caddyfile <<CADDY
+{
+	admin off
+	servers {
+		metrics
 	}
-
-	location / { return 404; }
 }
-NGINX
 
-cat >/etc/systemd/system/asset-cdn-maint.service <<'UNIT'
+$FQDN {
+	@tenants path $path_matchers
+	@manifest path */manifest.json
+	@write not method GET HEAD OPTIONS
+	@preflight method OPTIONS
+
+	handle /healthz {
+		root * /srv/status
+		rewrite * /healthz
+		header Content-Type text/plain
+		file_server
+	}
+	handle /_stats {
+		root * /srv/status
+		rewrite * /metrics.prom
+		header Content-Type text/plain
+		file_server
+	}
+	handle /_metrics {
+		metrics
+	}
+	handle @tenants {
+		handle @write {
+			respond 403
+		}
+		header Access-Control-Allow-Origin "$CORS"
+		header Access-Control-Expose-Headers "Content-Length, Content-Range, ETag, Accept-Ranges"
+		header Vary Origin
+		handle @preflight {
+			header Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+			header Access-Control-Allow-Headers "Range, If-None-Match"
+			header Access-Control-Max-Age 86400
+			respond 204
+		}
+		handle @manifest {
+			header Cache-Control "no-cache"
+			root * /srv/assets/current
+			file_server
+		}
+		handle {
+			header Cache-Control "public, max-age=31536000, immutable"
+			root * /srv/assets/current
+			file_server
+		}
+	}
+	handle {
+		respond 404
+	}
+}
+CADDY
+
+cat >/etc/systemd/system/caddy.service <<'UNIT'
+[Unit]
+Description=Caddy asset mirror server
+After=tailscaled.service
+Wants=tailscaled.service
+
+[Service]
+User=caddy
+Environment=XDG_DATA_HOME=/var/lib/caddy
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ExecStart=/usr/local/bin/caddy run --config /etc/caddy/Caddyfile
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+cat >/etc/systemd/system/asset-cdn-sync.service <<'UNIT'
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/asset-cdn-token
-ExecStart=/usr/local/bin/asset-cdn-stats
+ExecStart=/usr/local/bin/asset-cdn-sync
+ExecStartPost=/usr/local/bin/asset-cdn-egress
 UNIT
-cat >/etc/systemd/system/asset-cdn-maint.timer <<'UNIT'
+cat >/etc/systemd/system/asset-cdn-sync.timer <<'UNIT'
 [Timer]
-OnBootSec=5min
-OnUnitActiveSec=30min
+OnBootSec=1min
+OnUnitActiveSec=15min
 
 [Install]
 WantedBy=timers.target
 UNIT
-cat >/etc/systemd/system/asset-cdn-cert.service <<'UNIT'
+cat >/etc/systemd/system/asset-cdn-egress.service <<'UNIT'
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/asset-cdn-cert
+ExecStart=/usr/local/bin/asset-cdn-egress
 UNIT
-cat >/etc/systemd/system/asset-cdn-cert.timer <<'UNIT'
+cat >/etc/systemd/system/asset-cdn-egress.timer <<'UNIT'
 [Timer]
-OnCalendar=weekly
-Persistent=true
+OnBootSec=1min
+OnUnitActiveSec=5min
 
 [Install]
 WantedBy=timers.target
 UNIT
 
-/usr/local/bin/asset-cdn-stats
-nginx -t
+/usr/local/bin/caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl daemon-reload
-systemctl enable --now asset-cdn-maint.timer asset-cdn-cert.timer nginx
-systemctl reload nginx
+systemctl enable --now caddy asset-cdn-sync.timer asset-cdn-egress.timer

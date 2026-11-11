@@ -10,10 +10,10 @@ A travelling user reaches the application origin over a long path (hundreds of m
 
 ## Decision
 
-An internal CDN for tailnet clients, made of three parts.
+An internal CDN for tailnet clients, made of three parts (a mirror, not a cache).
 
 1. **One private regional bucket** in a free-tier region (`<region>` is one of us-west1, us-central1, us-east1). Uniform bucket-level access, public access prevention enforced, versioning off, abort-incomplete-multipart lifecycle rule.
-2. **A caching reverse proxy on one e2-micro** in the same region, joined to the tailnet with a tag, with no external IPv4 address. It reads the bucket through its attached service account (object viewer on the bucket, no keys) and serves HTTPS only to tailnet peers.
+2. **A mirror-and-serve node on one e2-micro** in the same region, joined to the tailnet with a tag, with no external IPv4 address. It reads the bucket through its attached service account (object viewer on the bucket, no keys) and serves HTTPS only to tailnet peers.
 3. **Out-of-band operations**: a Typer CLI for sync, warm and purge, and Prometheus-scrapable text endpoints.
 
 ### Multi-tenant contract
@@ -30,43 +30,42 @@ An internal CDN for tailnet clients, made of three parts.
 
 - Dual-stack subnet with `ipv6_access_type = EXTERNAL` and Private Google Access. The instance has an external IPv6 address and no `access_config`, so it has no billable external IPv4 and needs no Cloud NAT.
 - Firewall: ingress UDP 41641 from `::/0` for direct tailnet paths, nothing else. Control plane, relay servers and the Google APIs are reached over IPv6 and Private Google Access.
-- The VM boots without any package mirror. Tailscale (pinned static tarball) and nginx (the pinned Debian package pair) are staged under `bootstrap/` in the bucket and verified by SHA-256 before install. Hashes come from the publishers (Tailscale release checksum, Debian signed archive).
+- The VM boots without any package mirror. Tailscale (pinned static tarball), Caddy (pinned static binary) and rclone (pinned package) are staged under `bootstrap/` in the bucket and verified by SHA-256 before install. Hashes come from the publishers (Tailscale release checksum, Debian signed archive).
 - The tailnet auth key (one-time, tagged, pre-authorized) is issued by the tailnet workflow into a sensitive workspace variable and written by Terraform as a write-only Secret Manager version, so it is not stored in Terraform state. The VM identity has accessor on that one secret, and the boot script waits (bounded retries) until the staged packages and the key exist. No Tailscale deploy credential is held in OpenBao or trust-agent.
 - HTTPS certificate: the tailnet-issued certificate for the node name, renewed weekly. This needs HTTPS certificates enabled on the tailnet (it is).
 
-### Caching behaviour (nginx)
+### Serving model: local mirror behind Caddy
 
-- `proxy_cache` on the 10 GB standard boot disk (6 GB cap), 4 MB `slice` so range requests and resumed downloads fill and hit cache per slice, `proxy_cache_lock` so concurrent misses make one upstream read, `proxy_cache_background_update` and stale-on-error/timeout/5xx so the node keeps serving through bucket or network hiccups.
-- Hashed objects carry `Cache-Control: public, max-age=31536000, immutable` as object metadata, set by the uploader; nginx honours it. Manifests carry a short max-age with stale-while-revalidate.
-- No compression module: JPEG/WebP pass through byte-identical. ETag and Last-Modified pass through. CORS allows one configured origin, GET, HEAD, OPTIONS, and the Range header.
-- Only the configured tenant prefixes are routed; other paths return 404, directory-style paths return 404, non-read methods are rejected.
-- Access log: `/var/log/nginx/cdn.log`, rotated by the stock logrotate policy, with the upstream cache status.
+- **Mirror, not pull-through cache.** The tenant sets are small (about 45 MB against a 10 GB disk), so the node keeps a full local copy under `/srv/assets/<tenant>/`. A systemd timer (every 15 minutes) runs `rclone sync` with the VM identity from `<bucket>/<tenant>/` into a fresh hard-linked release directory (checksum based, deletes only inside that tenant prefix), then swaps the `current` symlink atomically. Clients never see a partial file, there is no cache invalidation and no cold-miss latency, and a failed sync (bucket or network outage) leaves the previous release serving. Old releases are pruned after a successful swap.
+- **Caddy** (single static Go binary, pinned and SHA-512 checked from `bootstrap/`) serves `/srv/assets/current` with `file_server`: native Range/206, ETag and Last-Modified, no compression (JPEG/WebP stay byte-identical), directory listing off. Only the configured tenant prefixes are routed; other paths return 404, non-read methods 403, CORS allows one configured origin plus GET, HEAD, OPTIONS and the Range header. Hashed objects get `Cache-Control: public, max-age=31536000, immutable`; `manifest.json` gets `no-cache`.
+- **TLS** comes from Caddy's built-in Tailscale support: the node name ends in the tailnet suffix, so Caddy fetches the tailnet certificate from the local daemon, which is allowed for the `caddy` user through `TS_PERMIT_CERT_UID`. No separate certificate job exists.
 
 ### Observability
 
-- `/healthz` (liveness), `/_status` (nginx `stub_status`) and `/_egress` (text metrics: monthly bytes sent, fraction of the free egress used, cache hit ratio from the log), all reachable only over the tailnet. The planned scrape: the cluster's Prometheus scrapes `/_egress` directly and `/_status` through the stock nginx exporter; scrape configuration is added later by the cluster owners and is not part of this change.
-- Logging stays inside the free quota: the node writes local logs only (no Ops Agent), so Cloud Logging ingestion is not used.
+- `/healthz` serves `ok last_sync=<unix>` written by the last successful sync (a stale value shows a failing mirror). `/_metrics` is Caddy's built-in Prometheus endpoint. `/_stats` is a text file with the monthly egress bytes (from the interface counter, kept across reboots), the fraction of the free egress used, and the mirror's last success, file count and bytes. All are reachable only over the tailnet. The planned scrape: the cluster's Prometheus scrapes `/_metrics` and `/_stats`; the scrape configuration is added later by the cluster owners and is not part of this change.
+- Logging stays inside the free quota: the node keeps local logs only (no Ops Agent), so Cloud Logging ingestion is not used.
 
 ### Cost guards
 
 Free-tier limits relied on (Google free-tier page, checked 2026-11-11): one non-preemptible e2-micro in us-west1/us-central1/us-east1, 30 GB-months standard disk, 1 GB per month egress from North America to most destinations, 5 GB-months regional storage in those regions, 5,000 class A and 50,000 class B operations.
 
-- **The metered path is VM egress to clients, not the bucket read.** Bucket to VM in the same region is free. A cache hit therefore protects latency, class B operation count and resilience; it does not reduce the bytes sent to clients. The egress budget is set by how many clients download how much: assume 45 MB assets times 8 travellers times about 2 full downloads, about 0.7 GB per month, which fits in 1 GB with a thin margin. Larger tenants need a decision before onboarding.
+- **The metered path is VM egress to clients, not the bucket read.** Bucket to VM in the same region is free, and the mirror reads each changed object once per sync. Serving from the mirror protects latency and resilience; it does not reduce the bytes sent to clients. The egress budget is set by how many clients download how much: assume 45 MB assets times 8 travellers times about 2 full downloads, about 0.7 GB per month, which fits in 1 GB with a thin margin. Larger tenants need a decision before onboarding.
 - Alerts: a Cloud Monitoring policy on the VM's daily sent bytes, with the threshold configurable (default 25 MiB per day, about 0.75 GB per month), a labelled budget alert (default 5 USD) and a monthly report from `/_egress`. The `/_egress` ratio can drive a Grafana alert at 0.8.
-- Expected hit ratio after warm-up: above 0.9 for hashed assets because each object is fetched from the bucket once per cache lifetime; the ratio measures bucket reads, not client egress.
+- Bucket operations are bounded by the sync schedule (a list plus checksums every 15 minutes per tenant, far below 50,000 class B operations per month for small tenants).
 - Rollback: `terraform destroy` of the module and removal of the DNS record. The application keeps serving from its origin; the asset base URL is configuration in the manifest.
 
 ## Alternatives considered
 
 - Public bucket or a third-party CDN: rejected by the owner (no public path).
 - Forwarder without cache: simpler, but loses range resume, stale serving and single-flight misses.
-- Caddy as the proxy: no built-in cache without a custom build; nginx's cache, slice and stale handling are first-class and ship as a distro package.
+- nginx as a pull-through cache (`proxy_cache`, slices, stale-on-error), the first implementation of this design and tested: rejected by the owner's preference and because a mirror is simpler and more robust at this size. Caddy wins on native TLS through Tailscale, a ten-line configuration, native Prometheus metrics and a single binary. Varnish was not needed.
 - External IPv4 or Cloud NAT: about 3.7 USD per month or more; not accepted unless the IPv6-only design fails with evidence and the owner approves.
 - Packages through a mirror at boot: depends on mirror reachability over IPv6; staging pinned artifacts in the private bucket removes that dependency.
 - Tailscale Serve or a Cloud Run service: Cloud Run is not tailnet-reachable without extra components.
 
 ## Consequences
 
+- Revisit trigger: when the combined tenant sets exceed about 8 GB or a second region appears, move to a pull-through cache (nginx or Varnish) in a new ADR that supersedes this serving model.
 - The connector is a single node; a failure falls back to the origin through the application's fallback.
 - Pinned artifacts must be re-staged and their hashes updated in workspace variables when upgrading.
 - The startup script is a deliberate shell exception: it is a boot-time launcher and a unit-file generator with no business logic; behaviour lives in nginx and systemd.
@@ -76,5 +75,5 @@ Free-tier limits relied on (Google free-tier page, checked 2026-11-11): one non-
 ## Verification
 
 - `terraform test` covers: private bucket flags, reader-only VM identity, prefix-conditioned writer grants, rejection of public writers, no external IPv4, dual-stack subnet with Private Google Access, single open UDP port, free-tier region and origin validation.
-- The rendered nginx configuration is syntax-checked (`nginx -t`) and exercised in a container: health, status, tenant routing, 404 and method rejection, CORS preflight and cache behaviour.
-- Throwaway apply (small, destroyed after): node joins the tailnet, shows a direct or relayed IPv6 path, reads the bucket, serves a cached object with a hit on the second request, and egress counters move.
+- The rendered Caddyfile, sync script and egress script are generated from the startup script and exercised in a container with a stub bucket: 200 and 206 served from the mirror, tenant routing, 404 for other paths and directories, 403 on non-read methods, CORS preflight, no content encoding, Prometheus metrics, atomic swap with deletions, and a failed sync leaving the previous release and health value intact. The VM identity, the metadata resolver and the Tailscale join are only verified in the throwaway apply.
+- Throwaway apply (small, destroyed after): node joins the tailnet, shows a direct or relayed IPv6 path, reads the bucket, serves a mirrored object over the tailnet, and the egress counters move.
