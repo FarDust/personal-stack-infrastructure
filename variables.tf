@@ -391,10 +391,9 @@ variable "asset_connector_budget_usd" {
   nullable    = false
 }
 
-variable "asset_connector_tailscale_authkey" {
+variable "asset_connector_tailscale_client_id" {
   type        = string
-  description = "One-time tagged pre-authorized Tailscale key for the asset connector, set by the tailnet workflow; empty until issued."
-  default     = ""
+  description = "Client id of the Tailscale federated identity trusting the connector VM identity; supplied by Terraform Cloud."
   sensitive   = true
   nullable    = false
 }

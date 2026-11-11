@@ -83,8 +83,8 @@ output "asset_connector_service_account" {
   sensitive   = true
 }
 
-output "asset_connector_authkey_secret" {
-  description = "Secret that receives the Tailscale auth key out of band."
-  value       = module.asset_connector.tailscale_authkey_secret
+output "asset_connector_service_account_unique_id" {
+  description = "Subject claim of the tailnet federated identity (the connector VM identity)."
+  value       = module.asset_connector.service_account_unique_id
   sensitive   = true
 }

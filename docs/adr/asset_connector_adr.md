@@ -14,7 +14,7 @@ An internal CDN for tailnet clients, made of three parts (a mirror, not a cache)
 
 1. **One private regional bucket** in a free-tier region (`<region>` is one of us-west1, us-central1, us-east1). Uniform bucket-level access, public access prevention enforced, versioning off, abort-incomplete-multipart lifecycle rule.
 2. **A mirror-and-serve node on one e2-micro** in the same region, joined to the tailnet with a tag, with no external IPv4 address. It reads the bucket through its attached service account (object viewer on the bucket, no keys) and serves HTTPS only to tailnet peers.
-3. **Out-of-band operations**: a Typer CLI for sync, warm and purge, and Prometheus-scrapable text endpoints.
+3. **Out-of-band operations**: a Typer CLI (`tools/asset-cdn`) that publishes content-hashed objects with their manifest, prunes superseded objects and verifies a tenant through the connector, and Prometheus-scrapable text endpoints.
 
 ### Multi-tenant contract
 
@@ -31,7 +31,7 @@ An internal CDN for tailnet clients, made of three parts (a mirror, not a cache)
 - Dual-stack subnet with `ipv6_access_type = EXTERNAL` and Private Google Access. The instance has an external IPv6 address and no `access_config`, so it has no billable external IPv4 and needs no Cloud NAT.
 - Firewall: ingress UDP 41641 from `::/0` for direct tailnet paths, nothing else. Control plane, relay servers and the Google APIs are reached over IPv6 and Private Google Access.
 - The VM boots without any package mirror. Tailscale (pinned static tarball), Caddy (pinned static binary) and rclone (pinned package) are staged under `bootstrap/` in the bucket and verified by SHA-256 before install. Hashes come from the publishers (Tailscale release checksum, Debian signed archive).
-- The tailnet auth key (one-time, tagged, pre-authorized) is issued by the tailnet workflow into a sensitive workspace variable and written by Terraform as a write-only Secret Manager version, so it is not stored in Terraform state. The VM identity has accessor on that one secret, and the boot script waits (bounded retries) until the staged packages and the key exist. No Tailscale deploy credential is held in OpenBao or trust-agent.
+- Tailnet join uses Tailscale workload identity federation: at boot the VM asks the metadata server for a Google-issued ID token (fixed audience `api.tailscale.com/<client-id>`) for its own service account and passes it to `tailscale up --client-id --id-token`, which exchanges it for a one-time, tagged, pre-authorized registration. The federated identity (issuer Google, subject the VM service account's unique id, scope `auth_keys`, one tag) is created in the tailnet by the tailnet repository's workflow. No auth key, secret or Tailscale credential is stored in Terraform, state, Secret Manager or OpenBao. The boot script retries the join until the federated identity exists.
 - HTTPS certificate: the tailnet-issued certificate for the node name, renewed weekly. This needs HTTPS certificates enabled on the tailnet (it is).
 
 ### Serving model: local mirror behind Caddy
@@ -70,7 +70,9 @@ Free-tier limits relied on (Google free-tier page, checked 2026-11-11): one non-
 - Pinned artifacts must be re-staged and their hashes updated in workspace variables when upgrading.
 - The startup script is a deliberate shell exception: it is a boot-time launcher and a unit-file generator with no business logic; behaviour lives in nginx and systemd.
 - Costs depend on usage: egress beyond 1 GB per month is billed at the standard rate (about 0.12 USD per GB, unverified).
-- Tailnet policy needs a tag owner entry and a grant for the tag (not applied by this change).
+- Tailnet policy needs a tag owner entry and a grant restricting the tag to the intended peers on TCP 443; the tailnet-only property depends on that policy (not applied by this change).
+- `terraform destroy` also deletes the staged `bootstrap/` binaries (force destroy); re-stage them before re-applying.
+- Class A operations: a 30-minute sync lists each tenant prefix about 1,450 times per month, so about three tenants fit the 5,000 free class A operations.
 
 ## Verification
 

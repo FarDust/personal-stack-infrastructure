@@ -15,7 +15,8 @@ variables {
   tenants = {
     example-app = { writers = ["user:operator@example.com"] }
   }
-  billing_account_id = "example-billing"
+  billing_account_id  = "example-billing"
+  tailscale_client_id = "example-client-id"
 }
 
 run "private_bucket_and_scoped_identity" {
@@ -96,29 +97,4 @@ run "reject_wildcard_origin" {
     cors_origin = "https://*.example.test"
   }
   expect_failures = [var.cors_origin]
-}
-
-run "authkey_version_only_when_issued" {
-  command = plan
-  module {
-    source = "./configs/asset-connector"
-  }
-  assert {
-    condition     = length(google_secret_manager_secret_version.tailscale_authkey) == 0
-    error_message = "No secret version may exist before the key is issued."
-  }
-}
-
-run "authkey_written_write_only" {
-  command = plan
-  module {
-    source = "./configs/asset-connector"
-  }
-  variables {
-    tailscale_authkey = "example-key"
-  }
-  assert {
-    condition     = length(google_secret_manager_secret_version.tailscale_authkey) == 1
-    error_message = "An issued key must become the secret version."
-  }
 }

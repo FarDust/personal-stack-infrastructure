@@ -22,12 +22,6 @@ resource "google_project_service" "billingbudgets" {
   disable_on_destroy = false
 }
 
-resource "google_project_service" "secretmanager" {
-  project            = var.project_id
-  service            = "secretmanager.googleapis.com"
-  disable_on_destroy = false
-}
-
 resource "google_storage_bucket" "assets" {
   project                     = var.project_id
   name                        = var.bucket_name
@@ -37,7 +31,12 @@ resource "google_storage_bucket" "assets" {
   uniform_bucket_level_access = true
   # Assets are a reproducible copy of the origin, so rollback may delete them.
   force_destroy = true
-  labels        = local.labels
+
+  # Soft-deleted bytes would bill as storage; the origin keeps the source of truth.
+  soft_delete_policy {
+    retention_duration_seconds = 0
+  }
+  labels = local.labels
 
   versioning {
     enabled = false
@@ -57,7 +56,7 @@ resource "google_service_account" "connector" {
   project      = var.project_id
   account_id   = "asset-connector"
   display_name = "Asset connector VM"
-  description  = "Reads the private asset bucket and the Tailscale auth-key secret; no keys."
+  description  = "Reads the private asset bucket and proves its identity to the tailnet; no keys."
 }
 
 resource "google_storage_bucket_iam_member" "connector_reader" {
@@ -90,40 +89,8 @@ resource "google_storage_bucket_iam_member" "tenant_writer" {
 
   condition {
     title      = "prefix-${local.tenant_writers[each.key].tenant}"
-    expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.assets.name}/objects/${local.tenant_writers[each.key].tenant}/\")"
+    expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.assets.name}/objects/${local.tenant_writers[each.key].tenant}/\") || api.getAttribute(\"storage.googleapis.com/objectListPrefix\", \"\").startsWith(\"${local.tenant_writers[each.key].tenant}/\")"
   }
-}
-
-resource "google_secret_manager_secret" "tailscale_authkey" {
-  project   = var.project_id
-  secret_id = "asset-connector-tailscale-authkey"
-  labels    = local.labels
-
-  replication {
-    user_managed {
-      replicas {
-        location = var.region
-      }
-    }
-  }
-
-  depends_on = [google_project_service.secretmanager]
-}
-
-# The key arrives through a sensitive workspace variable and is written as a write-only
-# secret version, so it never lands in Terraform state. Until it exists the VM waits.
-resource "google_secret_manager_secret_version" "tailscale_authkey" {
-  count                  = var.tailscale_authkey == "" ? 0 : 1
-  secret                 = google_secret_manager_secret.tailscale_authkey.id
-  secret_data_wo         = var.tailscale_authkey
-  secret_data_wo_version = 1
-}
-
-resource "google_secret_manager_secret_iam_member" "connector_authkey" {
-  project   = var.project_id
-  secret_id = google_secret_manager_secret.tailscale_authkey.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.connector.email}"
 }
 
 resource "google_compute_network" "connector" {
@@ -207,6 +174,7 @@ resource "google_compute_instance" "connector" {
 
   metadata = {
     block-project-ssh-keys = "true"
+    enable-oslogin         = "TRUE"
     asset-bucket           = google_storage_bucket.assets.name
     asset-cors-origin      = var.cors_origin
     ts-tag                 = var.tailscale_tag
@@ -217,14 +185,14 @@ resource "google_compute_instance" "connector" {
     rclone-version         = var.rclone_version
     rclone-sha256          = var.rclone_sha256
     asset-tenants          = join(",", nonsensitive(sort(keys(var.tenants))))
-    ts-authkey-secret      = google_secret_manager_secret.tailscale_authkey.secret_id
+    ts-client-id           = var.tailscale_client_id
+    ts-audience            = "api.tailscale.com/${var.tailscale_client_id}"
   }
 
   metadata_startup_script = file("${path.module}/startup.sh")
 
   depends_on = [
     google_storage_bucket_iam_member.connector_reader,
-    google_secret_manager_secret_iam_member.connector_authkey,
   ]
 }
 

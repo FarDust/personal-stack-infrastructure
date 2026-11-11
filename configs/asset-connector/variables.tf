@@ -47,7 +47,7 @@ variable "cors_origin" {
   nullable    = false
 
   validation {
-    condition     = can(regex("^https://[^/*\\s]+$", var.cors_origin))
+    condition     = can(regex("^https://[^/*\\s\"{}]+$", var.cors_origin))
     error_message = "Use one explicit https origin without a wildcard or path."
   }
 }
@@ -124,8 +124,12 @@ variable "tenants" {
   nullable    = false
 
   validation {
-    condition     = alltrue([for t in nonsensitive(keys(var.tenants)) : can(regex("^[a-z][a-z0-9-]{1,20}$", t))])
-    error_message = "Tenant prefixes are lowercase slugs of at most 21 characters."
+    condition     = alltrue([for t in nonsensitive(keys(var.tenants)) : can(regex("^[a-z][a-z0-9-]{1,19}[a-z0-9]$", t))])
+    error_message = "Tenant prefixes are lowercase slugs of 3 to 21 characters."
+  }
+  validation {
+    condition     = !contains(nonsensitive(keys(var.tenants)), "bootstrap")
+    error_message = "The bootstrap prefix is reserved for pinned binaries."
   }
   validation {
     condition     = alltrue(flatten([for t in var.tenants : [for w in t.writers : can(regex("^(user|serviceAccount|group):[^\\s]+@[^\\s]+$", w))]]))
@@ -166,10 +170,14 @@ variable "budget_usd" {
   }
 }
 
-variable "tailscale_authkey" {
+variable "tailscale_client_id" {
   type        = string
-  description = "One-time tagged pre-authorized Tailscale key, written by a CI workflow into a sensitive workspace variable; empty until it is issued."
-  default     = ""
+  description = "Client id of the Tailscale federated identity that trusts the VM identity (tag, preauthorized, auth_keys scope only)."
   sensitive   = true
   nullable    = false
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_-]{6,64}$", var.tailscale_client_id))
+    error_message = "Provide the federated identity client id."
+  }
 }

@@ -18,8 +18,8 @@ CADSHA=$(mdv instance/attributes/caddy-sha512)
 RCV=$(mdv instance/attributes/rclone-version)
 RCSHA=$(mdv instance/attributes/rclone-sha256)
 TENANTS=$(mdv instance/attributes/asset-tenants)
-SECRET=$(mdv instance/attributes/ts-authkey-secret)
-PROJECT=$(mdv project/project-id)
+CLIENTID=$(mdv instance/attributes/ts-client-id)
+AUDIENCE=$(mdv instance/attributes/ts-audience)
 
 token() { mdv instance/service-accounts/default/token | sed -E 's/.*"access_token":"([^"]+)".*/\1/'; }
 
@@ -41,10 +41,12 @@ fetch_once() { # object-name destination
 }
 fetch() { retry fetch_once "$1" "$2"; }
 
-fetch_authkey_once() {
-  curl -fsS -H "Authorization: Bearer $(token)" \
-    "https://secretmanager.googleapis.com/v1/projects/$PROJECT/secrets/$SECRET/versions/latest:access" \
-    | sed -E 's/.*"data": *"([^"]+)".*/\1/' | base64 -d >"$work/authkey"
+# Join with a Google-issued ID token for the VM identity, exchanged by Tailscale workload identity
+# federation for a one-time tagged key. No key or secret is stored anywhere.
+join_once() {
+  local idt
+  idt=$(mdv "instance/service-accounts/default/identity?audience=${AUDIENCE}&format=full")
+  /usr/local/bin/tailscale up --client-id="${CLIENTID}?ephemeral=false&preauthorized=true"     --id-token="$idt" --hostname=asset-connector --advertise-tags="$TAG" --accept-dns=false --ssh=false
 }
 
 work=$(mktemp -d)
@@ -91,11 +93,9 @@ UNIT
 systemctl daemon-reload
 systemctl enable --now tailscaled
 
-if ! /usr/local/bin/tailscale status --json | grep -q '"BackendState": "Running"'; then
-  retry fetch_authkey_once
-  chmod 600 "$work/authkey"
-  /usr/local/bin/tailscale up --auth-key="file:$work/authkey" --hostname=asset-connector \
-    --advertise-tags="$TAG" --accept-dns=false --ssh=false
+ts_status=$(/usr/local/bin/tailscale status --json 2>/dev/null || true)
+if ! grep -q '"BackendState": "Running"' <<<"$ts_status"; then
+  retry join_once
 fi
 
 FQDN=$(/usr/local/bin/tailscale status --json | grep -m1 '"DNSName"' | sed -E 's/.*"DNSName": *"([^"]+)\.".*/\1/')
@@ -104,6 +104,7 @@ mkdir -p /srv/assets/releases /srv/status /var/lib/asset-cdn /etc/caddy
 [ -e /srv/assets/current ] || { mkdir -p /srv/assets/releases/empty; ln -sfn /srv/assets/releases/empty /srv/assets/current; }
 echo "ok last_sync=never" >/srv/status/healthz
 : >/srv/status/metrics.prom
+: >/srv/status/mirror.prom
 chmod -R a+rX /srv
 
 # Mirror: checksum sync of every tenant prefix into a fresh hard-linked release, then an atomic
@@ -245,7 +246,7 @@ UNIT
 cat >/etc/systemd/system/asset-cdn-sync.timer <<'UNIT'
 [Timer]
 OnBootSec=1min
-OnUnitActiveSec=15min
+OnUnitActiveSec=30min
 
 [Install]
 WantedBy=timers.target

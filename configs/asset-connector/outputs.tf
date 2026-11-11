@@ -10,8 +10,8 @@ output "service_account_email" {
   sensitive   = true
 }
 
-output "tailscale_authkey_secret" {
-  description = "Secret Manager secret that receives the Tailscale auth key out of band."
-  value       = google_secret_manager_secret.tailscale_authkey.secret_id
+output "service_account_unique_id" {
+  description = "Numeric id of the VM identity; it is the subject claim of the tailnet federated identity."
+  value       = google_service_account.connector.unique_id
   sensitive   = true
 }

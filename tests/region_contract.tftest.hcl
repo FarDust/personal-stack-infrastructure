@@ -16,6 +16,7 @@ variables {
   artifact_bucket_name                    = "example-private-artifacts"
   artifact_bucket_location                = "US-CENTRAL1"
   artifact_bucket_writers                 = {}
+  asset_connector_tailscale_client_id     = "example-client-id"
   asset_connector_region                  = "us-west1"
   asset_connector_zone                    = "us-west1-b"
   asset_connector_bucket_name             = "example-assets"
