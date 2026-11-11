@@ -21,11 +21,28 @@ PROJECT=$(mdv project/project-id)
 
 token() { mdv instance/service-accounts/default/token | sed -E 's/.*"access_token":"([^"]+)".*/\1/'; }
 
-fetch() { # object-name destination
+# Wait on observed conditions (staged object, issued key); the retry count only bounds a failure.
+retry() { # command...
+  local n=0
+  until "$@"; do
+    n=$((n + 1))
+    if [ "$n" -ge 720 ]; then echo "gave up waiting for: $*" >&2; return 1; fi
+    sleep 60
+  done
+}
+
+fetch_once() { # object-name destination
   local obj
   obj=$(printf '%s' "$1" | sed 's#/#%2F#g')
   curl -fsS -H "Authorization: Bearer $(token)" -o "$2" \
     "https://storage.googleapis.com/storage/v1/b/$BUCKET/o/$obj?alt=media"
+}
+fetch() { retry fetch_once "$1" "$2"; }
+
+fetch_authkey_once() {
+  curl -fsS -H "Authorization: Bearer $(token)" \
+    "https://secretmanager.googleapis.com/v1/projects/$PROJECT/secrets/$SECRET/versions/latest:access" \
+    | sed -E 's/.*"data": *"([^"]+)".*/\1/' | base64 -d >"$work/authkey"
 }
 
 work=$(mktemp -d)
@@ -65,9 +82,7 @@ systemctl daemon-reload
 systemctl enable --now tailscaled
 
 if ! /usr/local/bin/tailscale status --json | grep -q '"BackendState": "Running"'; then
-  curl -fsS -H "Authorization: Bearer $(token)" \
-    "https://secretmanager.googleapis.com/v1/projects/$PROJECT/secrets/$SECRET/versions/latest:access" \
-    | sed -E 's/.*"data": *"([^"]+)".*/\1/' | base64 -d >"$work/authkey"
+  retry fetch_authkey_once
   chmod 600 "$work/authkey"
   /usr/local/bin/tailscale up --auth-key="file:$work/authkey" --hostname=asset-connector \
     --advertise-tags="$TAG" --accept-dns=false --ssh=false

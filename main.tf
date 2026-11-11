@@ -104,6 +104,7 @@ module "asset_connector" {
   nginx_deb_sha256        = var.asset_connector_nginx_deb_sha256
   nginx_common_deb_sha256 = var.asset_connector_nginx_common_deb_sha256
   tenants                 = var.asset_connector_tenants
+  tailscale_authkey       = var.asset_connector_tailscale_authkey
   notification_email      = var.asset_connector_notification_email
   billing_account_id      = var.asset_connector_billing_account_id
   budget_usd              = var.asset_connector_budget_usd

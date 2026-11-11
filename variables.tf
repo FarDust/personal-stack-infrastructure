@@ -384,3 +384,11 @@ variable "asset_connector_budget_usd" {
   default     = 5
   nullable    = false
 }
+
+variable "asset_connector_tailscale_authkey" {
+  type        = string
+  description = "One-time tagged pre-authorized Tailscale key for the asset connector, set by the tailnet workflow; empty until issued."
+  default     = ""
+  sensitive   = true
+  nullable    = false
+}

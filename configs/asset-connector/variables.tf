@@ -159,3 +159,11 @@ variable "budget_usd" {
     error_message = "Keep the connector budget positive and within the 20 USD monthly cap."
   }
 }
+
+variable "tailscale_authkey" {
+  type        = string
+  description = "One-time tagged pre-authorized Tailscale key, written by a CI workflow into a sensitive workspace variable; empty until it is issued."
+  default     = ""
+  sensitive   = true
+  nullable    = false
+}

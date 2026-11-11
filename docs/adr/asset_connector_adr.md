@@ -22,6 +22,7 @@ An internal CDN for tailnet clients, made of three parts.
 - Objects are immutable and named by content hash. Each tenant publishes a manifest object (`manifest.json`, short `Cache-Control`) listing hashed names, sizes and hashes; clients and the warm CLI read it.
 - Writers: one service account per tenant, granted object user on the bucket with an IAM condition on the tenant prefix. Extra writer principals per tenant come from a workspace variable. No keys are created; writers use workload identity or approved user credentials.
 - Readers: the connector service account only (object viewer). Browsers never talk to the bucket.
+- Initial hostname: the connector's tailnet node name (the tailnet-issued certificate covers it). A friendlier name under the private cluster domain, with its own certificate (DNS-01 on the cluster) and DNS record, is a documented follow-up; the cluster domain currently resolves through a wildcard to the cluster manager, so that record must be explicit. DNS is not changed by this PR.
 - Public URL shape: `https://<cdn-host>/<tenant>/<hashed-name>`. The CDN name is a record under the private cluster domain that points to the connector's tailnet address; resolution stays on the tailnet DNS path with no aliases or split-DNS.
 - Request authorisation: tailnet policy only. The connector exposes nothing to the internet except the WireGuard UDP port.
 
@@ -30,7 +31,7 @@ An internal CDN for tailnet clients, made of three parts.
 - Dual-stack subnet with `ipv6_access_type = EXTERNAL` and Private Google Access. The instance has an external IPv6 address and no `access_config`, so it has no billable external IPv4 and needs no Cloud NAT.
 - Firewall: ingress UDP 41641 from `::/0` for direct tailnet paths, nothing else. Control plane, relay servers and the Google APIs are reached over IPv6 and Private Google Access.
 - The VM boots without any package mirror. Tailscale (pinned static tarball) and nginx (the pinned Debian package pair) are staged under `bootstrap/` in the bucket and verified by SHA-256 before install. Hashes come from the publishers (Tailscale release checksum, Debian signed archive).
-- The tailnet auth key lives in Secret Manager (value added out of band through custody, never in Terraform). The VM identity has accessor on that one secret.
+- The tailnet auth key (one-time, tagged, pre-authorized) is issued by the tailnet workflow into a sensitive workspace variable and written by Terraform as a write-only Secret Manager version, so it is not stored in Terraform state. The VM identity has accessor on that one secret, and the boot script waits (bounded retries) until the staged packages and the key exist. No Tailscale deploy credential is held in OpenBao or trust-agent.
 - HTTPS certificate: the tailnet-issued certificate for the node name, renewed weekly. This needs HTTPS certificates enabled on the tailnet (it is).
 
 ### Caching behaviour (nginx)

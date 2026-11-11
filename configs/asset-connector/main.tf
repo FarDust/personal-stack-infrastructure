@@ -110,7 +110,15 @@ resource "google_secret_manager_secret" "tailscale_authkey" {
   depends_on = [google_project_service.secretmanager]
 }
 
-# The secret value is added out of band (trust-agent custody); Terraform never holds it.
+# The key arrives through a sensitive workspace variable and is written as a write-only
+# secret version, so it never lands in Terraform state. Until it exists the VM waits.
+resource "google_secret_manager_secret_version" "tailscale_authkey" {
+  count                  = var.tailscale_authkey == "" ? 0 : 1
+  secret                 = google_secret_manager_secret.tailscale_authkey.id
+  secret_data_wo         = var.tailscale_authkey
+  secret_data_wo_version = 1
+}
+
 resource "google_secret_manager_secret_iam_member" "connector_authkey" {
   project   = var.project_id
   secret_id = google_secret_manager_secret.tailscale_authkey.secret_id
