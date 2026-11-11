@@ -70,3 +70,21 @@ output "wallet_signer_service_account_email" {
   value       = module.wallet_signing.signer_service_account_email
   sensitive   = true
 }
+
+output "asset_connector_bucket_name" {
+  description = "The private asset bucket behind the tailnet connector."
+  value       = module.asset_connector.bucket_name
+  sensitive   = true
+}
+
+output "asset_connector_service_account" {
+  description = "The connector VM identity (object read on the asset bucket only)."
+  value       = module.asset_connector.service_account_email
+  sensitive   = true
+}
+
+output "asset_connector_service_account_unique_id" {
+  description = "Subject claim of the tailnet federated identity (the connector VM identity)."
+  value       = module.asset_connector.service_account_unique_id
+  sensitive   = true
+}

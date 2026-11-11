@@ -289,3 +289,111 @@ variable "wallet_signer_members" {
     error_message = "Wallet signers must be distinct explicit user or service-account email principals."
   }
 }
+
+variable "asset_connector_region" {
+  type        = string
+  description = "Always Free region for the asset connector; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_zone" {
+  type        = string
+  description = "Zone for the asset connector VM; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_bucket_name" {
+  type        = string
+  description = "Private asset bucket name; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_cors_origin" {
+  type        = string
+  description = "The single HTTPS origin allowed to read assets; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_tailscale_tag" {
+  type        = string
+  description = "Tailscale ACL tag the connector advertises."
+  default     = "tag:asset-connector"
+  nullable    = false
+}
+
+variable "asset_connector_tailscale_version" {
+  type        = string
+  description = "Pinned Tailscale static release staged in the asset bucket."
+  nullable    = false
+}
+
+variable "asset_connector_tailscale_sha256" {
+  type        = string
+  description = "SHA-256 of the pinned Tailscale tarball."
+  nullable    = false
+}
+
+variable "asset_connector_caddy_version" {
+  type        = string
+  description = "Pinned Caddy release staged in the asset bucket."
+  nullable    = false
+}
+
+variable "asset_connector_caddy_sha512" {
+  type        = string
+  description = "SHA-512 of the pinned Caddy tarball."
+  nullable    = false
+}
+
+variable "asset_connector_rclone_version" {
+  type        = string
+  description = "Pinned rclone release staged in the asset bucket."
+  nullable    = false
+}
+
+variable "asset_connector_rclone_sha256" {
+  type        = string
+  description = "SHA-256 of the pinned rclone package."
+  nullable    = false
+}
+
+variable "asset_connector_tenants" {
+  type = map(object({
+    writers = list(string)
+  }))
+  description = "CDN project prefixes with extra writer principals; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_notification_email" {
+  type        = string
+  description = "Recipient of the egress alert; null leaves it without a channel."
+  default     = null
+  sensitive   = true
+}
+
+variable "asset_connector_billing_account_id" {
+  type        = string
+  description = "Billing account for the connector budget alert; null skips the budget."
+  default     = null
+  sensitive   = true
+}
+
+variable "asset_connector_budget_usd" {
+  type        = number
+  description = "Monthly budget alert for resources labelled as the connector."
+  default     = 5
+  nullable    = false
+}
+
+variable "asset_connector_tailscale_client_id" {
+  type        = string
+  description = "Client id of the Tailscale federated identity trusting the connector VM identity; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
