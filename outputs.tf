@@ -70,3 +70,21 @@ output "wallet_signer_service_account_email" {
   value       = module.wallet_signing.signer_service_account_email
   sensitive   = true
 }
+
+output "asset_connector_bucket_name" {
+  description = "The private asset bucket behind the tailnet connector."
+  value       = module.asset_connector.bucket_name
+  sensitive   = true
+}
+
+output "asset_connector_service_account" {
+  description = "The connector VM identity (object read on the asset bucket only)."
+  value       = module.asset_connector.service_account_email
+  sensitive   = true
+}
+
+output "asset_connector_authkey_secret" {
+  description = "Secret that receives the Tailscale auth key out of band."
+  value       = module.asset_connector.tailscale_authkey_secret
+  sensitive   = true
+}

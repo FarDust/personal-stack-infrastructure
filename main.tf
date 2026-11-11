@@ -89,3 +89,22 @@ module "loki_storage" {
   loki_storage_folder_path = var.loki_storage_folder_path
   loki_service_account_id  = var.loki_service_account_id
 }
+
+module "asset_connector" {
+  source                  = "./configs/asset-connector"
+  project_id              = var.project_id
+  region                  = var.asset_connector_region
+  zone                    = var.asset_connector_zone
+  bucket_name             = var.asset_connector_bucket_name
+  cors_origin             = var.asset_connector_cors_origin
+  tailscale_tag           = var.asset_connector_tailscale_tag
+  tailscale_version       = var.asset_connector_tailscale_version
+  tailscale_sha256        = var.asset_connector_tailscale_sha256
+  nginx_version           = var.asset_connector_nginx_version
+  nginx_deb_sha256        = var.asset_connector_nginx_deb_sha256
+  nginx_common_deb_sha256 = var.asset_connector_nginx_common_deb_sha256
+  tenants                 = var.asset_connector_tenants
+  notification_email      = var.asset_connector_notification_email
+  billing_account_id      = var.asset_connector_billing_account_id
+  budget_usd              = var.asset_connector_budget_usd
+}

@@ -16,6 +16,16 @@ variables {
   artifact_bucket_name                    = "example-private-artifacts"
   artifact_bucket_location                = "US-CENTRAL1"
   artifact_bucket_writers                 = {}
+  asset_connector_region                  = "us-west1"
+  asset_connector_zone                    = "us-west1-b"
+  asset_connector_bucket_name             = "example-assets"
+  asset_connector_cors_origin             = "https://app.example.test"
+  asset_connector_tailscale_version       = "1.0.0"
+  asset_connector_tailscale_sha256        = "0000000000000000000000000000000000000000000000000000000000000000"
+  asset_connector_nginx_version           = "1.0.0"
+  asset_connector_nginx_deb_sha256        = "0000000000000000000000000000000000000000000000000000000000000000"
+  asset_connector_nginx_common_deb_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+  asset_connector_tenants                 = { example-app = { writers = [] } }
   cluster_artifact_registry_location      = "example-region1"
   cluster_artifact_registry_repository_id = "example-image-repo"
   python_artifact_registry_location       = "example-region1"
