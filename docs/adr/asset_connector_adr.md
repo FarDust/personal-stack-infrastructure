@@ -54,6 +54,18 @@ Free-tier limits relied on (Google free-tier page, checked 2026-11-11): one non-
 - Bucket operations are bounded by the sync schedule (a list plus checksums every 15 minutes per tenant, far below 50,000 class B operations per month for small tenants).
 - Rollback: `terraform destroy` of the module and removal of the DNS record. The application keeps serving from its origin; the asset base URL is configuration in the manifest.
 
+## Executor roles (added for the connector)
+
+Roles added for the asset-connector; review and tighten after the first successful apply. They live in `bootstrap/storage/asset_connector_executor.tf` and exist only when the connector bucket name is supplied to the bootstrap workspace:
+
+- Compute instance admin (predefined, project): instances, boot disk and metadata. IAM conditions cannot cover the operation and project permissions the role also holds, and the Compute API held no resources before the connector.
+- A custom role limited to network, subnetwork and firewall lifecycle plus operation reads, instead of the predefined network admin.
+- Monitoring alert policy editor (no notification channel access).
+- Service account user, conditioned to the single connector identity.
+- Storage admin conditioned to the exact connector bucket, next to the existing artifact bucket binding.
+- No Service Usage role: the Compute API is enabled once outside Terraform, so the executor cannot enable or disable APIs. The Budget API and billing-account permissions are not granted; the labelled budget stays disabled until they are granted deliberately.
+- No owner or editor, no organization roles, nothing on other buckets.
+
 ## Alternatives considered
 
 - Public bucket or a third-party CDN: rejected by the owner (no public path).

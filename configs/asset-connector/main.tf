@@ -9,19 +9,6 @@ locals {
   }
 }
 
-resource "google_project_service" "compute" {
-  project            = var.project_id
-  service            = "compute.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "billingbudgets" {
-  count              = var.billing_account_id == null ? 0 : 1
-  project            = var.project_id
-  service            = "billingbudgets.googleapis.com"
-  disable_on_destroy = false
-}
-
 resource "google_storage_bucket" "assets" {
   project                     = var.project_id
   name                        = var.bucket_name
@@ -97,8 +84,6 @@ resource "google_compute_network" "connector" {
   project                 = var.project_id
   name                    = "asset-connector"
   auto_create_subnetworks = false
-
-  depends_on = [google_project_service.compute]
 }
 
 resource "google_compute_subnetwork" "connector" {
@@ -196,6 +181,7 @@ resource "google_compute_instance" "connector" {
   ]
 }
 
+# Needs the Budget API enabled once and billing-account permissions; skipped unless an id is supplied.
 resource "google_billing_budget" "connector" {
   count           = var.billing_account_id == null ? 0 : 1
   billing_account = var.billing_account_id
@@ -221,8 +207,6 @@ resource "google_billing_budget" "connector" {
   threshold_rules {
     threshold_percent = 1.0
   }
-
-  depends_on = [google_project_service.billingbudgets]
 }
 
 resource "google_monitoring_notification_channel" "egress" {
