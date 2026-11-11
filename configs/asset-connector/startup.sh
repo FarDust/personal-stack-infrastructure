@@ -18,8 +18,6 @@ CADSHA=$(mdv instance/attributes/caddy-sha512)
 RCV=$(mdv instance/attributes/rclone-version)
 RCSHA=$(mdv instance/attributes/rclone-sha256)
 TENANTS=$(mdv instance/attributes/asset-tenants)
-CLIENTID=$(mdv instance/attributes/ts-client-id)
-AUDIENCE=$(mdv instance/attributes/ts-audience)
 
 token() { mdv instance/service-accounts/default/token | sed -E 's/.*"access_token":"([^"]+)".*/\1/'; }
 
@@ -44,7 +42,10 @@ fetch() { retry fetch_once "$1" "$2"; }
 # Join with a Google-issued ID token for the VM identity, exchanged by Tailscale workload identity
 # federation for a one-time tagged key. No key or secret is stored anywhere.
 join_once() {
-  local idt
+  local idt CLIENTID AUDIENCE
+  # Re-read on every attempt so the identity can be supplied after the first boot.
+  CLIENTID=$(mdv instance/attributes/ts-client-id)
+  AUDIENCE=$(mdv instance/attributes/ts-audience)
   idt=$(mdv "instance/service-accounts/default/identity?audience=${AUDIENCE}&format=full")
   /usr/local/bin/tailscale up --client-id="${CLIENTID}?ephemeral=false&preauthorized=true"     --id-token="$idt" --hostname=asset-connector --advertise-tags="$TAG" --accept-dns=false --ssh=false
 }
