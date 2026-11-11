@@ -66,3 +66,15 @@ variable "python_artifact_registry_repository_id" {
     error_message = "The repository ID must be 3-63 lowercase letters, numbers, or hyphens and start with a letter."
   }
 }
+
+variable "asset_connector_bucket_name" {
+  type        = string
+  description = "Exact asset connector bucket name supplied privately; null skips the connector roles."
+  default     = null
+  sensitive   = true
+
+  validation {
+    condition     = var.asset_connector_bucket_name == null || can(regex("^[a-z0-9][a-z0-9_.-]{2,62}$", var.asset_connector_bucket_name))
+    error_message = "Provide a valid bucket name or leave the variable null."
+  }
+}
