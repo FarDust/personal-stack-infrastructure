@@ -1,5 +1,7 @@
 # Roles the Terraform runtime needs to create the asset connector (see docs/adr/asset_connector_adr.md).
 # Added for the asset connector: review and tighten after the first successful apply.
+# Conditions below document intent: the executor also holds project IAM admin and could rewrite
+# them, so they are audit value, not a security boundary.
 # Nothing here grants owner, editor, organization roles, other buckets or Service Usage: the
 # compute API is enabled once outside Terraform, so the executor never receives a role that
 # can enable or disable APIs.
@@ -40,6 +42,7 @@ resource "google_project_iam_custom_role" "asset_connector_network_manager" {
     "compute.subnetworks.get",
     "compute.subnetworks.list",
     "compute.subnetworks.setPrivateIpGoogleAccess",
+    "compute.subnetworks.update",
     "compute.subnetworks.use",
     "compute.subnetworks.useExternalIp",
     "compute.firewalls.create",
@@ -48,7 +51,11 @@ resource "google_project_iam_custom_role" "asset_connector_network_manager" {
     "compute.firewalls.list",
     "compute.firewalls.update",
     "compute.globalOperations.get",
+    "compute.globalOperations.list",
     "compute.regionOperations.get",
+    "compute.regionOperations.list",
+    "compute.zoneOperations.get",
+    "compute.zoneOperations.list",
   ]
 }
 
@@ -59,7 +66,8 @@ resource "google_project_iam_member" "asset_connector_network_manager" {
   member  = var.terraform_executor
 }
 
-# Alert policies for the egress guard. The editor role cannot read or change notification channels.
+# Alert policies for the egress guard. The editor role cannot manage notification channels, so the
+# connector keeps notification_email unset until a channel role is granted deliberately.
 resource "google_project_iam_member" "asset_connector_alert_policy_editor" {
   count   = local.connector_enabled ? 1 : 0
   project = var.project_id
@@ -91,7 +99,7 @@ resource "google_project_iam_member" "asset_connector_bucket_manager" {
 
   condition {
     title       = "asset_connector_bucket_only"
-    description = "Manage only the designated asset connector bucket."
-    expression  = "resource.name == ${jsonencode("projects/_/buckets/${var.asset_connector_bucket_name}")}"
+    description = "Manage only the designated asset connector bucket and its objects."
+    expression  = "resource.name == ${jsonencode("projects/_/buckets/${var.asset_connector_bucket_name}")} || resource.name.startsWith(${jsonencode("projects/_/buckets/${var.asset_connector_bucket_name}/objects/")})"
   }
 }

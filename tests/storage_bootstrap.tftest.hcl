@@ -77,7 +77,7 @@ run "asset_connector_roles_are_minimal_and_conditioned" {
     asset_connector_bucket_name = "example-assets"
   }
   assert {
-    condition     = nonsensitive(google_project_iam_member.asset_connector_bucket_manager[0].condition[0].expression) == "resource.name == \"projects/_/buckets/example-assets\""
+    condition     = nonsensitive(google_project_iam_member.asset_connector_bucket_manager[0].condition[0].expression) == "resource.name == \"projects/_/buckets/example-assets\" || resource.name.startsWith(\"projects/_/buckets/example-assets/objects/\")"
     error_message = "Storage administration for the connector must be limited to its exact bucket."
   }
   assert {
@@ -85,7 +85,7 @@ run "asset_connector_roles_are_minimal_and_conditioned" {
     error_message = "Acting as a service account must be limited to the connector identity."
   }
   assert {
-    condition     = alltrue([for p in google_project_iam_custom_role.asset_connector_network_manager[0].permissions : can(regex("^compute\\.(networks|subnetworks|firewalls|globalOperations|regionOperations)\\.", p)) && !can(regex("IamPolicy", p))])
+    condition     = alltrue([for p in google_project_iam_custom_role.asset_connector_network_manager[0].permissions : can(regex("^compute\\.(networks|subnetworks|firewalls|globalOperations|regionOperations|zoneOperations)\\.", p)) && !can(regex("[Ii]am[Pp]olicy", p)) && !can(regex("instances", p))])
     error_message = "The custom network role must not hold instance or IAM administration."
   }
   assert {
