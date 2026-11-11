@@ -22,7 +22,7 @@ An internal CDN for tailnet clients, made of three parts.
 - Objects are immutable and named by content hash. Each tenant publishes a manifest object (`manifest.json`, short `Cache-Control`) listing hashed names, sizes and hashes; clients and the warm CLI read it.
 - Writers: one service account per tenant, granted object user on the bucket with an IAM condition on the tenant prefix. Extra writer principals per tenant come from a workspace variable. No keys are created; writers use workload identity or approved user credentials.
 - Readers: the connector service account only (object viewer). Browsers never talk to the bucket.
-- Public URL shape: `https://<cdn-host>/<tenant>/<hashed-name>`. The CDN name `assets.local.tralmor.com` is a record under the cluster's `local` domain that points to the connector's tailnet address; resolution stays on the tailnet DNS path with no aliases or split-DNS.
+- Public URL shape: `https://<cdn-host>/<tenant>/<hashed-name>`. The CDN name is a record under the private cluster domain that points to the connector's tailnet address; resolution stays on the tailnet DNS path with no aliases or split-DNS.
 - Request authorisation: tailnet policy only. The connector exposes nothing to the internet except the WireGuard UDP port.
 
 ### Network design (no paid IPv4, no NAT)
