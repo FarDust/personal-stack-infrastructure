@@ -16,7 +16,7 @@ from asset_cdn.settings import Settings
 app = typer.Typer(no_args_is_help=True, help="Private tailnet asset CDN operations.")
 console = Console(stderr=True)
 
-_GCS = ["--gcs-bucket-policy-only"]
+_GCS = ["--gcs-bucket-policy-only", "--gcs-env-auth"]
 
 
 @app.command()

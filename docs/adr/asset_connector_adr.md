@@ -66,6 +66,13 @@ Roles added for the asset-connector; review and tighten after the first successf
 - No Service Usage role: the Compute API is enabled once outside Terraform, so the executor cannot enable or disable APIs. The Budget API and billing-account permissions are not granted; the labelled budget stays disabled until they are granted deliberately.
 - No owner or editor, no organization roles, nothing on other buckets.
 
+## Rollout record (2026-11-11)
+
+- First apply failed on missing executor permissions (service usage, monitoring, bucket read, then service account actAs). The fixes were the bootstrap roles above, a one-time Compute API enablement outside Terraform, and an actAs binding on the connector service account resource: a project-level name condition on the service account user role is not honoured by the compute check.
+- The IPv6-only node with Private Google Access booted, verified the staged binaries, joined the tailnet through workload identity federation on the first attempt, mirrored the tenant and served ranges, immutable cache headers, CORS, 404 and 403 paths and the metrics endpoints.
+- From the owner's desktop in the same hemisphere as the origin, the node is reached through a relay with about 185 ms round trip and about 1 MB per second, so it is slower than the origin there; the design targets clients far from the origin and a direct path (open UDP port and IPv6) needs a client that can use it.
+- The bootstrap workspace has no standing cloud credential: its applies use a short-lived access token set as a sensitive variable for the run and deleted right after.
+
 ## Alternatives considered
 
 - Public bucket or a third-party CDN: rejected by the owner (no public path).
