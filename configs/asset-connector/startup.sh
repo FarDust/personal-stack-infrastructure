@@ -126,9 +126,8 @@ log_format cdn '\$time_iso8601 \$status \$bytes_sent \$upstream_cache_status "\$
 resolver 169.254.169.254 valid=300s ipv6=off;
 
 server {
-	listen 443 ssl;
-	listen [::]:443 ssl;
-	http2 on;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
 	server_name $FQDN;
 	ssl_certificate /etc/asset-cdn/tls/cert.pem;
 	ssl_certificate_key /etc/asset-cdn/tls/key.pem;
