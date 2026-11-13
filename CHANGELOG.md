@@ -6,6 +6,8 @@ This repository's releases follow Semantic Versioning once tagged.
 
 ### Added
 
+- Dedicated federated Python repository readers selected by neutral account aliases (backward-compatible MINOR capability; default disabled).
+
 - Prefix-scoped expiry of noncurrent panel backup versions in the shared bucket, preserving other prefixes and soft deletion.
 
 - Optional dedicated panel backup identity scoped to one managed folder, without storing HMAC secrets in Terraform state.
