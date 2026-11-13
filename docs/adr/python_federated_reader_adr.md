@@ -34,10 +34,11 @@ owner for each repository/role/member tuple and prevents one path deleting a
 membership still declared by the other.
 The reader lifecycle precondition compares the selected service-account email
 exported by the shared module against all privileged principals managed by this
-root: Python and image registry writers, bucket writers, the secrets account,
-backup writer, and Loki administrator. It compares principals, not map aliases,
-so a second alias cannot conceal an overlap. Independent operator grants remain
-valid; the check rejects selection rather than removing any privilege.
+root: Python and image registry writers, bucket writers, asset-connector tenant
+writers, Wallet signing members, the secrets account, backup writer, and Loki
+administrator. It compares principals, not map aliases, so a second alias cannot
+conceal an overlap. Independent operator grants remain valid; the check rejects
+selection rather than removing any privilege.
 The separate bootstrap workspace's executor grants and out-of-band or inherited
 IAM are outside this root's configuration. Before deployment, review effective
 IAM for the selected account, including bootstrap, project/folder/organization
@@ -51,8 +52,8 @@ download costs still require review under the existing budget gate.
 ## Verification
 
 Mock tests cover the repository-scoped reader, empty selection, malformed aliases,
-wrong owner, multiple repositories, differently aliased writer overlaps, and
-duplicate reader ownership.
+wrong owner, multiple repositories, differently aliased writer overlaps, duplicate
+reader ownership, asset-connector tenant writers, and Wallet signers.
 Existing shared-module tests cover exact repository impersonation and
 unchanged owner conditions. Local tests establish source behavior only. Before
 deployment, review a full HCP plan for one account, one impersonation member and

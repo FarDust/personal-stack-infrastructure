@@ -118,6 +118,27 @@ run "reject_bucket_writer_under_different_alias" {
   expect_failures = [google_artifact_registry_repository_iam_member.python_federated_reader]
 }
 
+run "reject_asset_connector_tenant_writer_under_different_alias" {
+  command = plan
+  variables {
+    asset_connector_tenants = {
+      example-app = {
+        writers = ["serviceAccount:example-reader-fa@example-project.iam.gserviceaccount.com"]
+      }
+    }
+  }
+  expect_failures = [google_artifact_registry_repository_iam_member.python_federated_reader]
+}
+
+run "reject_wallet_signer_under_different_alias" {
+  command = plan
+  variables {
+    wallet_signer_service_account_id = "example-wallet-signing"
+    wallet_signer_members            = ["serviceAccount:example-reader-fa@example-project.iam.gserviceaccount.com"]
+  }
+  expect_failures = [google_artifact_registry_repository_iam_member.python_federated_reader]
+}
+
 run "reject_null_alias" {
   command = plan
   variables {

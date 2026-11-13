@@ -38,13 +38,15 @@ resource "google_artifact_registry_repository_iam_member" "python_federated_read
         values(var.python_artifact_registry_writers),
         values(var.cluster_artifact_registry_writers),
         values(var.artifact_bucket_writers),
+        flatten([for tenant in values(var.asset_connector_tenants) : tenant.writers]),
+        var.wallet_signer_members,
         ["serviceAccount:${module.github-identity-federation.federated-github-users["secrets"].federated-user.email}"],
         [for email in compact([
           module.workspace_backup_storage.writer_service_account_email,
           module.loki_storage.service_account_email
         ]) : "serviceAccount:${email}"]
       ), "serviceAccount:${module.github-identity-federation.federated-github-users[each.key].federated-user.email}")
-      error_message = "A dedicated package reader must not also hold a writer, storage administration, backup writer, or secrets grant managed by this root. Review effective IAM separately for external grants."
+      error_message = "A dedicated package reader must not also hold a registry, bucket, asset-tenant writer, Wallet signing, storage-administration, backup-writer, or secrets grant managed by this root. Review effective IAM separately for external grants."
     }
   }
 }
