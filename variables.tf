@@ -86,6 +86,39 @@ variable "workspace_backup_folder_paths" {
   }
 }
 
+variable "panel_backup_bucket_name" {
+  type        = string
+  description = "Private bucket holding panel backups, supplied by Terraform Cloud."
+  default     = ""
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = var.panel_backup_folder_path == "" || length(var.panel_backup_bucket_name) >= 3
+    error_message = "A bucket name is required when panel backups are enabled."
+  }
+}
+
+variable "panel_backup_folder_path" {
+  type        = string
+  description = "Server UUID and trailing slash identifying the managed backup folder; empty disables it."
+  default     = ""
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = var.panel_backup_folder_path == "" || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/$", var.panel_backup_folder_path))
+    error_message = "Use an empty value or one lowercase server UUID followed by a slash."
+  }
+}
+
+variable "panel_backup_grant_enabled" {
+  type        = bool
+  description = "Grant folder access and enable the backup service account. Set false to revoke access while retaining the managed folder."
+  default     = true
+  nullable    = false
+}
+
 variable "workspace_backup_writer_service_account_id" {
   type        = string
   description = "The generic account ID for the workspace-backup writer identity."
@@ -232,4 +265,135 @@ variable "loki_noncurrent_version_days" {
     condition     = var.loki_noncurrent_version_days >= 1 && var.loki_noncurrent_version_days == floor(var.loki_noncurrent_version_days)
     error_message = "Use a whole number of days, at least 1."
   }
+}
+variable "wallet_signer_service_account_id" {
+  description = "Dedicated Wallet pass signing service-account identifier from workspace configuration."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = length(var.wallet_signer_members) == 0 || can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.wallet_signer_service_account_id))
+    error_message = "Wallet signing requires a valid dedicated service-account identifier."
+  }
+}
+
+variable "wallet_signer_members" {
+  description = "Explicit principals allowed to sign personal Wallet passes. Empty disables the module."
+  type        = list(string)
+  sensitive   = true
+  default     = []
+
+  validation {
+    condition     = length(distinct(var.wallet_signer_members)) == length(var.wallet_signer_members) && alltrue([for member in var.wallet_signer_members : can(regex("^(user|serviceAccount):[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", member))])
+    error_message = "Wallet signers must be distinct explicit user or service-account email principals."
+  }
+}
+
+variable "asset_connector_region" {
+  type        = string
+  description = "Always Free region for the asset connector; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_zone" {
+  type        = string
+  description = "Zone for the asset connector VM; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_bucket_name" {
+  type        = string
+  description = "Private asset bucket name; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_cors_origin" {
+  type        = string
+  description = "The single HTTPS origin allowed to read assets; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_tailscale_tag" {
+  type        = string
+  description = "Tailscale ACL tag the connector advertises."
+  default     = "tag:asset-connector"
+  nullable    = false
+}
+
+variable "asset_connector_tailscale_version" {
+  type        = string
+  description = "Pinned Tailscale static release staged in the asset bucket."
+  nullable    = false
+}
+
+variable "asset_connector_tailscale_sha256" {
+  type        = string
+  description = "SHA-256 of the pinned Tailscale tarball."
+  nullable    = false
+}
+
+variable "asset_connector_caddy_version" {
+  type        = string
+  description = "Pinned Caddy release staged in the asset bucket."
+  nullable    = false
+}
+
+variable "asset_connector_caddy_sha512" {
+  type        = string
+  description = "SHA-512 of the pinned Caddy tarball."
+  nullable    = false
+}
+
+variable "asset_connector_rclone_version" {
+  type        = string
+  description = "Pinned rclone release staged in the asset bucket."
+  nullable    = false
+}
+
+variable "asset_connector_rclone_sha256" {
+  type        = string
+  description = "SHA-256 of the pinned rclone package."
+  nullable    = false
+}
+
+variable "asset_connector_tenants" {
+  type = map(object({
+    writers = list(string)
+  }))
+  description = "CDN project prefixes with extra writer principals; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
+}
+
+variable "asset_connector_notification_email" {
+  type        = string
+  description = "Recipient of the egress alert; null leaves it without a channel."
+  default     = null
+  sensitive   = true
+}
+
+variable "asset_connector_billing_account_id" {
+  type        = string
+  description = "Billing account for the connector budget alert; null skips the budget."
+  default     = null
+  sensitive   = true
+}
+
+variable "asset_connector_budget_usd" {
+  type        = number
+  description = "Monthly budget alert for resources labelled as the connector."
+  default     = 5
+  nullable    = false
+}
+
+variable "asset_connector_tailscale_client_id" {
+  type        = string
+  description = "Client id of the Tailscale federated identity trusting the connector VM identity; supplied by Terraform Cloud."
+  sensitive   = true
+  nullable    = false
 }

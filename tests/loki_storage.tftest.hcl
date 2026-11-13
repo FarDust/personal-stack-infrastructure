@@ -136,6 +136,32 @@ run "no_lifecycle_rule_by_default" {
   }
 }
 
+run "panel_retention_preserves_existing_loki_rule" {
+  command = plan
+  module {
+    source = "./configs/storage"
+  }
+  variables {
+    artifact_bucket_location = "example-region1"
+    artifact_bucket_writers  = {}
+    noncurrent_version_expiry = sensitive({
+      loki  = { prefix = "loki/cluster/", days = 3 }
+      panel = { prefix = "12345678-1234-1234-1234-123456789abc/", days = 1 }
+    })
+  }
+  assert {
+    condition = nonsensitive(length(google_storage_bucket.shared_artifacts.lifecycle_rule) == 2 && alltrue([
+      for rule in google_storage_bucket.shared_artifacts.lifecycle_rule : alltrue([
+        for cond in rule.condition : cond.with_state == "ARCHIVED" && length(cond.matches_prefix) == 1 && (
+          (contains(cond.matches_prefix, "loki/cluster/") && cond.days_since_noncurrent_time == 3) ||
+          (contains(cond.matches_prefix, "12345678-1234-1234-1234-123456789abc/") && cond.days_since_noncurrent_time == 1)
+        )
+      ])
+    ]))
+    error_message = "Only noncurrent versions in the two configured prefixes may expire, with their original durations."
+  }
+}
+
 run "rejects_bucket_wide_lifecycle_rule" {
   command = plan
 

@@ -25,12 +25,24 @@ module "storage" {
   artifact_bucket_name     = var.artifact_bucket_name
   artifact_bucket_writers  = var.artifact_bucket_writers
 
-  noncurrent_version_expiry = var.loki_storage_folder_path == "" ? {} : {
+  noncurrent_version_expiry = merge(var.loki_storage_folder_path == "" ? {} : {
     loki = {
       prefix = var.loki_storage_folder_path
       days   = var.loki_noncurrent_version_days
     }
-  }
+    }, var.panel_backup_folder_path != "" && var.panel_backup_bucket_name == var.artifact_bucket_name ? {
+    panel = {
+      prefix = var.panel_backup_folder_path
+      days   = 1
+    }
+  } : {})
+}
+
+module "wallet_signing" {
+  source                    = "./configs/wallet-signing"
+  project_id                = var.project_id
+  signer_service_account_id = var.wallet_signer_service_account_id
+  signer_members            = var.wallet_signer_members
 }
 
 module "workspace_backup_storage" {
@@ -39,6 +51,16 @@ module "workspace_backup_storage" {
   artifact_bucket_name          = var.artifact_bucket_name
   workspace_backup_folder_paths = var.workspace_backup_folder_paths
   writer_service_account_id     = var.workspace_backup_writer_service_account_id
+}
+
+module "panel_backup_storage" {
+  source        = "./configs/panel-backup-storage"
+  enabled       = nonsensitive(var.panel_backup_folder_path != "")
+  project_id    = var.project_id
+  bucket_name   = var.panel_backup_bucket_name
+  folder_path   = var.panel_backup_folder_path
+  grant_enabled = var.panel_backup_grant_enabled
+  depends_on    = [module.storage]
 }
 
 module "cluster_artifact_registry" {
@@ -66,4 +88,25 @@ module "loki_storage" {
   artifact_bucket_name     = module.storage.artifact_bucket_name
   loki_storage_folder_path = var.loki_storage_folder_path
   loki_service_account_id  = var.loki_service_account_id
+}
+
+module "asset_connector" {
+  source              = "./configs/asset-connector"
+  project_id          = var.project_id
+  region              = var.asset_connector_region
+  zone                = var.asset_connector_zone
+  bucket_name         = var.asset_connector_bucket_name
+  cors_origin         = var.asset_connector_cors_origin
+  tailscale_tag       = var.asset_connector_tailscale_tag
+  tailscale_version   = var.asset_connector_tailscale_version
+  tailscale_sha256    = var.asset_connector_tailscale_sha256
+  caddy_version       = var.asset_connector_caddy_version
+  caddy_sha512        = var.asset_connector_caddy_sha512
+  rclone_version      = var.asset_connector_rclone_version
+  rclone_sha256       = var.asset_connector_rclone_sha256
+  tenants             = var.asset_connector_tenants
+  tailscale_client_id = var.asset_connector_tailscale_client_id
+  notification_email  = var.asset_connector_notification_email
+  billing_account_id  = var.asset_connector_billing_account_id
+  budget_usd          = var.asset_connector_budget_usd
 }

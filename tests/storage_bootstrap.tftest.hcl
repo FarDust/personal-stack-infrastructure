@@ -67,3 +67,40 @@ run "reject_public_bootstrap_principal" {
   }
   expect_failures = [var.terraform_executor]
 }
+
+run "asset_connector_roles_are_minimal_and_conditioned" {
+  command = apply
+  module {
+    source = "./bootstrap/storage"
+  }
+  variables {
+    asset_connector_bucket_name = "example-assets"
+  }
+  assert {
+    condition     = nonsensitive(google_project_iam_member.asset_connector_bucket_manager[0].condition[0].expression) == "resource.name == \"projects/_/buckets/example-assets\" || resource.name.startsWith(\"projects/_/buckets/example-assets/objects/\")"
+    error_message = "Storage administration for the connector must be limited to its exact bucket."
+  }
+  assert {
+    condition     = nonsensitive(google_service_account_iam_member.asset_connector_identity_user[0].service_account_id) == "projects/example-project/serviceAccounts/asset-connector@example-project.iam.gserviceaccount.com" && google_service_account_iam_member.asset_connector_identity_user[0].role == "roles/iam.serviceAccountUser"
+    error_message = "Acting as a service account must be bound on the connector identity only."
+  }
+  assert {
+    condition     = alltrue([for p in google_project_iam_custom_role.asset_connector_network_manager[0].permissions : can(regex("^compute\\.(networks|subnetworks|firewalls|globalOperations|regionOperations|zoneOperations)\\.", p)) && !can(regex("[Ii]am[Pp]olicy", p)) && !can(regex("instances", p))])
+    error_message = "The custom network role must not hold instance or IAM administration."
+  }
+  assert {
+    condition     = alltrue([for r in [google_project_iam_member.asset_connector_instance_admin[0].role, google_project_iam_member.asset_connector_alert_policy_editor[0].role] : !contains(["roles/owner", "roles/editor", "roles/serviceusage.serviceUsageAdmin"], r)])
+    error_message = "The executor must not receive broad or API-enabling roles."
+  }
+}
+
+run "connector_roles_absent_without_bucket" {
+  command = apply
+  module {
+    source = "./bootstrap/storage"
+  }
+  assert {
+    condition     = length(google_project_iam_member.asset_connector_bucket_manager) == 0 && length(google_project_iam_member.asset_connector_instance_admin) == 0
+    error_message = "Without a connector bucket no extra executor roles may exist."
+  }
+}

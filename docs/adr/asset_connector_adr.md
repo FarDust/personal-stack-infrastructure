@@ -1,0 +1,100 @@
+# ADR: Private asset CDN on the tailnet (asset connector)
+
+Status: accepted (owner decision and approval of the design, 2026-11-11). Implementation: `configs/asset-connector`, tested in `tests/asset_connector.tftest.hcl`.
+
+All deployment identifiers (project, region, zone, bucket, hostnames, principals) are Terraform Cloud workspace variables or private notes; this document uses placeholders such as `<region>`, `<bucket>` and `<tailnet-host>`.
+
+## Context
+
+A travelling user reaches the application origin over a long path (hundreds of milliseconds round trip, worse through relays). Heavy, immutable assets (images, tiles, bundles) dominate transfer time. The owner accepts a private cloud bucket behind a tailnet connector, but only if the whole design stays in the free tier, with no public bucket, no public route and no third-party CDN.
+
+## Decision
+
+An internal CDN for tailnet clients, made of three parts (a mirror, not a cache).
+
+1. **One private regional bucket** in a free-tier region (`<region>` is one of us-west1, us-central1, us-east1). Uniform bucket-level access, public access prevention enforced, versioning off, abort-incomplete-multipart lifecycle rule.
+2. **A mirror-and-serve node on one e2-micro** in the same region, joined to the tailnet with a tag, with no external IPv4 address. It reads the bucket through its attached service account (object viewer on the bucket, no keys) and serves HTTPS only to tailnet peers.
+3. **Out-of-band operations**: a Typer CLI (`tools/asset-cdn`) that publishes content-hashed objects with their manifest, prunes superseded objects and verifies a tenant through the connector, and Prometheus-scrapable text endpoints.
+
+### Multi-tenant contract
+
+- Layout: `<bucket>/<tenant>/<content-hashed-name>`. A tenant is a project slug (for example the first tenant is the travel route app). `bootstrap/` is reserved for pinned binaries and is never served.
+- Objects are immutable and named by content hash. Each tenant publishes a manifest object (`manifest.json`, short `Cache-Control`) listing hashed names, sizes and hashes; clients and the warm CLI read it.
+- Writers: one service account per tenant, granted object user on the bucket with an IAM condition on the tenant prefix. Extra writer principals per tenant come from a workspace variable. No keys are created; writers use workload identity or approved user credentials.
+- Readers: the connector service account only (object viewer). Browsers never talk to the bucket.
+- Initial hostname: the connector's tailnet node name (the tailnet-issued certificate covers it). A friendlier name under the private cluster domain, with its own certificate (DNS-01 on the cluster) and DNS record, is a documented follow-up; the cluster domain currently resolves through a wildcard to the cluster manager, so that record must be explicit. DNS is not changed by this PR.
+- Public URL shape: `https://<cdn-host>/<tenant>/<hashed-name>`. The CDN name is a record under the private cluster domain that points to the connector's tailnet address; resolution stays on the tailnet DNS path with no aliases or split-DNS.
+- Request authorisation: tailnet policy only. The connector exposes nothing to the internet except the WireGuard UDP port.
+
+### Network design (no paid IPv4, no NAT)
+
+- Dual-stack subnet with `ipv6_access_type = EXTERNAL` and Private Google Access. The instance has an external IPv6 address and no `access_config`, so it has no billable external IPv4 and needs no Cloud NAT.
+- Firewall: ingress UDP 41641 from `::/0` for direct tailnet paths, nothing else. Control plane, relay servers and the Google APIs are reached over IPv6 and Private Google Access.
+- The VM boots without any package mirror. Tailscale (pinned static tarball), Caddy (pinned static binary) and rclone (pinned package) are staged under `bootstrap/` in the bucket and verified by SHA-256 before install. Hashes come from the publishers (Tailscale release checksum, Debian signed archive).
+- Tailnet join uses Tailscale workload identity federation: at boot the VM asks the metadata server for a Google-issued ID token (fixed audience `api.tailscale.com/<client-id>`) for its own service account and passes it to `tailscale up --client-id --id-token`, which exchanges it for a one-time, tagged, pre-authorized registration. The federated identity (issuer Google, subject the VM service account's unique id, scope `auth_keys`, one tag) is created in the tailnet by the tailnet repository's workflow. No auth key, secret or Tailscale credential is stored in Terraform, state, Secret Manager or OpenBao. The boot script retries the join until the federated identity exists.
+- HTTPS certificate: the tailnet-issued certificate for the node name, renewed weekly. This needs HTTPS certificates enabled on the tailnet (it is).
+
+### Serving model: local mirror behind Caddy
+
+- **Mirror, not pull-through cache.** The tenant sets are small (about 45 MB against a 10 GB disk), so the node keeps a full local copy under `/srv/assets/<tenant>/`. A systemd timer (every 15 minutes) runs `rclone sync` with the VM identity from `<bucket>/<tenant>/` into a fresh hard-linked release directory (checksum based, deletes only inside that tenant prefix), then swaps the `current` symlink atomically. Clients never see a partial file, there is no cache invalidation and no cold-miss latency, and a failed sync (bucket or network outage) leaves the previous release serving. Old releases are pruned after a successful swap.
+- **Caddy** (single static Go binary, pinned and SHA-512 checked from `bootstrap/`) serves `/srv/assets/current` with `file_server`: native Range/206, ETag and Last-Modified, no compression (JPEG/WebP stay byte-identical), directory listing off. Only the configured tenant prefixes are routed; other paths return 404, non-read methods 403, CORS allows one configured origin plus GET, HEAD, OPTIONS and the Range header. Hashed objects get `Cache-Control: public, max-age=31536000, immutable`; `manifest.json` gets `no-cache`.
+- **TLS** comes from Caddy's built-in Tailscale support: the node name ends in the tailnet suffix, so Caddy fetches the tailnet certificate from the local daemon, which is allowed for the `caddy` user through `TS_PERMIT_CERT_UID`. No separate certificate job exists.
+
+### Observability
+
+- `/healthz` serves `ok last_sync=<unix>` written by the last successful sync (a stale value shows a failing mirror). `/_metrics` is Caddy's built-in Prometheus endpoint. `/_stats` is a text file with the monthly egress bytes (from the interface counter, kept across reboots), the fraction of the free egress used, and the mirror's last success, file count and bytes. All are reachable only over the tailnet. The planned scrape: the cluster's Prometheus scrapes `/_metrics` and `/_stats`; the scrape configuration is added later by the cluster owners and is not part of this change.
+- Logging stays inside the free quota: the node keeps local logs only (no Ops Agent), so Cloud Logging ingestion is not used.
+
+### Cost guards
+
+Free-tier limits relied on (Google free-tier page, checked 2026-11-11): one non-preemptible e2-micro in us-west1/us-central1/us-east1, 30 GB-months standard disk, 1 GB per month egress from North America to most destinations, 5 GB-months regional storage in those regions, 5,000 class A and 50,000 class B operations.
+
+- **The metered path is VM egress to clients, not the bucket read.** Bucket to VM in the same region is free, and the mirror reads each changed object once per sync. Serving from the mirror protects latency and resilience; it does not reduce the bytes sent to clients. The egress budget is set by how many clients download how much: assume 45 MB assets times 8 travellers times about 2 full downloads, about 0.7 GB per month, which fits in 1 GB with a thin margin. Larger tenants need a decision before onboarding.
+- Alerts: a Cloud Monitoring policy on the VM's daily sent bytes, with the threshold configurable (default 25 MiB per day, about 0.75 GB per month), a labelled budget alert (default 5 USD) and a monthly report from `/_egress`. The `/_egress` ratio can drive a Grafana alert at 0.8.
+- Bucket operations are bounded by the sync schedule (a list plus checksums every 15 minutes per tenant, far below 50,000 class B operations per month for small tenants).
+- Rollback: `terraform destroy` of the module and removal of the DNS record. The application keeps serving from its origin; the asset base URL is configuration in the manifest.
+
+## Executor roles (added for the connector)
+
+Roles added for the asset-connector; review and tighten after the first successful apply. They live in `bootstrap/storage/asset_connector_executor.tf` and exist only when the connector bucket name is supplied to the bootstrap workspace:
+
+- Compute instance admin (predefined, project): instances, boot disk and metadata. IAM conditions cannot cover the operation and project permissions the role also holds, and the Compute API held no resources before the connector.
+- A custom role limited to network, subnetwork and firewall lifecycle plus operation reads, instead of the predefined network admin.
+- Monitoring alert policy editor (no notification channel access).
+- Service account user, conditioned to the single connector identity.
+- Storage admin conditioned to the exact connector bucket, next to the existing artifact bucket binding.
+- No Service Usage role: the Compute API is enabled once outside Terraform, so the executor cannot enable or disable APIs. The Budget API and billing-account permissions are not granted; the labelled budget stays disabled until they are granted deliberately.
+- No owner or editor, no organization roles, nothing on other buckets.
+
+## Rollout record (2026-11-11)
+
+- First apply failed on missing executor permissions (service usage, monitoring, bucket read, then service account actAs). The fixes were the bootstrap roles above, a one-time Compute API enablement outside Terraform, and an actAs binding on the connector service account resource: a project-level name condition on the service account user role is not honoured by the compute check.
+- The IPv6-only node with Private Google Access booted, verified the staged binaries, joined the tailnet through workload identity federation on the first attempt, mirrored the tenant and served ranges, immutable cache headers, CORS, 404 and 403 paths and the metrics endpoints.
+- From the owner's desktop in the same hemisphere as the origin, the node is reached through a relay with about 185 ms round trip and about 1 MB per second, so it is slower than the origin there; the design targets clients far from the origin and a direct path (open UDP port and IPv6) needs a client that can use it.
+- The bootstrap workspace has no standing cloud credential: its applies use a short-lived access token set as a sensitive variable for the run and deleted right after.
+
+## Alternatives considered
+
+- Public bucket or a third-party CDN: rejected by the owner (no public path).
+- Forwarder without cache: simpler, but loses range resume, stale serving and single-flight misses.
+- nginx as a pull-through cache (`proxy_cache`, slices, stale-on-error), the first implementation of this design and tested: rejected by the owner's preference and because a mirror is simpler and more robust at this size. Caddy wins on native TLS through Tailscale, a ten-line configuration, native Prometheus metrics and a single binary. Varnish was not needed.
+- External IPv4 or Cloud NAT: about 3.7 USD per month or more; not accepted unless the IPv6-only design fails with evidence and the owner approves.
+- Packages through a mirror at boot: depends on mirror reachability over IPv6; staging pinned artifacts in the private bucket removes that dependency.
+- Tailscale Serve or a Cloud Run service: Cloud Run is not tailnet-reachable without extra components.
+
+## Consequences
+
+- Revisit trigger: when the combined tenant sets exceed about 8 GB or a second region appears, move to a pull-through cache (nginx or Varnish) in a new ADR that supersedes this serving model.
+- The connector is a single node; a failure falls back to the origin through the application's fallback.
+- Pinned artifacts must be re-staged and their hashes updated in workspace variables when upgrading.
+- The startup script is a deliberate shell exception: it is a boot-time launcher and a unit-file generator with no business logic; behaviour lives in nginx and systemd.
+- Costs depend on usage: egress beyond 1 GB per month is billed at the standard rate (about 0.12 USD per GB, unverified).
+- Tailnet policy needs a tag owner entry and a grant restricting the tag to the intended peers on TCP 443; the tailnet-only property depends on that policy (not applied by this change).
+- `terraform destroy` also deletes the staged `bootstrap/` binaries (force destroy); re-stage them before re-applying.
+- Class A operations: a 30-minute sync lists each tenant prefix about 1,450 times per month, so about three tenants fit the 5,000 free class A operations.
+
+## Verification
+
+- `terraform test` covers: private bucket flags, reader-only VM identity, prefix-conditioned writer grants, rejection of public writers, no external IPv4, dual-stack subnet with Private Google Access, single open UDP port, free-tier region and origin validation.
+- The rendered Caddyfile, sync script and egress script are generated from the startup script and exercised in a container with a stub bucket: 200 and 206 served from the mirror, tenant routing, 404 for other paths and directories, 403 on non-read methods, CORS preflight, no content encoding, Prometheus metrics, atomic swap with deletions, and a failed sync leaving the previous release and health value intact. The VM identity, the metadata resolver and the Tailscale join are only verified in the throwaway apply.
+- Throwaway apply (small, destroyed after): node joins the tailnet, shows a direct or relayed IPv6 path, reads the bucket, serves a mirrored object over the tailnet, and the egress counters move.
