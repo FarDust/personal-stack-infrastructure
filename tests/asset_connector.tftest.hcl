@@ -83,7 +83,7 @@ run "reject_region_outside_free_tier" {
     source = "./configs/asset-connector"
   }
   variables {
-    region = "southamerica-west1"
+    region = "example-invalid-region"
   }
   expect_failures = [var.region]
 }
