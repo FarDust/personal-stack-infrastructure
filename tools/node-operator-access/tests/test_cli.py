@@ -1,5 +1,6 @@
 """CLI behaviour around failures: the CLI itself reverts, not only the remote trap."""
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -78,7 +79,8 @@ def test_success_needs_the_backup_marker(monkeypatch, keys):
 
 
 def test_help_names_the_overseer_key_flags():
-    out = CliRunner().invoke(cli.app, ["apply", "--help"], env={"COLUMNS": "240", "NO_COLOR": "1"}).output
+    raw = CliRunner().invoke(cli.app, ["apply", "--help"], env={"COLUMNS": "240", "NO_COLOR": "1"}).output
+    out = re.sub(r"\x1b\[[0-9;]*m", "", raw)  # CI forces colour; Rich styles each part of a flag
     assert "--overseer-private-key-file" in out and "--overseer-public-key-file" in out
     assert "--private-key-file " not in out.replace("--overseer-private-key-file", "")
 
