@@ -98,3 +98,64 @@ run "reject_wildcard_origin" {
   }
   expect_failures = [var.cors_origin]
 }
+
+run "overseer_absent_by_default" {
+  command = plan
+  module {
+    source = "./configs/asset-connector"
+  }
+  assert {
+    condition     = !contains(keys(google_compute_instance.connector.metadata), "overseer-ssh-pubkey")
+    error_message = "Without the operator inputs the VM carries no operator account metadata."
+  }
+}
+
+run "overseer_requires_key_and_source_together" {
+  command = plan
+  module {
+    source = "./configs/asset-connector"
+  }
+  variables {
+    overseer_public_key = "ssh-ed25519 AAAAexamplekey overseer@example"
+  }
+  expect_failures = [var.overseer_public_key]
+}
+
+run "overseer_metadata_with_both_inputs" {
+  command = plan
+  module {
+    source = "./configs/asset-connector"
+  }
+  variables {
+    overseer_public_key = "ssh-ed25519 AAAAexamplekey overseer@example"
+    overseer_source_ip  = "100.64.0.1"
+  }
+  assert {
+    condition     = google_compute_instance.connector.metadata["overseer-source-ip"] == "100.64.0.1" && google_compute_instance.connector.metadata["enable-oslogin"] == "TRUE" && google_compute_instance.connector.metadata["block-project-ssh-keys"] == "true"
+    error_message = "The operator source is set and OS Login stays the owner's way in."
+  }
+}
+
+run "reject_non_ed25519_overseer_key" {
+  command = plan
+  module {
+    source = "./configs/asset-connector"
+  }
+  variables {
+    overseer_public_key = "ssh-rsa AAAAexample"
+    overseer_source_ip  = "100.64.0.1"
+  }
+  expect_failures = [var.overseer_public_key]
+}
+
+run "reject_public_overseer_source" {
+  command = plan
+  module {
+    source = "./configs/asset-connector"
+  }
+  variables {
+    overseer_public_key = "ssh-ed25519 AAAAexamplekey overseer@example"
+    overseer_source_ip  = "203.0.113.5"
+  }
+  expect_failures = [var.overseer_source_ip]
+}

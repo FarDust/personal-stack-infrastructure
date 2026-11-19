@@ -6,6 +6,8 @@ This repository's releases follow Semantic Versioning once tagged.
 
 ### Added
 
+- `configs/asset-connector`: optional key-only `overseer` operator account with passwordless sudo, restricted by sshd to one tailnet source address (backward-compatible MINOR capability; default disabled). ADR `docs/adr/asset_connector_overseer_access_adr.md`.
+
 - Dedicated federated Python repository readers selected by neutral account aliases (backward-compatible MINOR capability; default disabled).
 
 - Prefix-scoped expiry of noncurrent panel backup versions in the shared bucket, preserving other prefixes and soft deletion.
