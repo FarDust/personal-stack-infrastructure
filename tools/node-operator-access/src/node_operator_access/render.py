@@ -119,10 +119,18 @@ def _prelude(root: str) -> str:
     return _PRELUDE.replace("@ROOT@", shlex.quote(root))
 
 
-def render_script(access: OperatorAccess, *, root: str = "") -> str:
-    """Bootstrap script; prints `NODE_OPERATOR_ACCESS_BACKUP=<dir>` and reverts itself on failure."""
+_ATELO_CHECK = 'id atelo >/dev/null 2>&1 || { echo "atelo account missing; create it first" >&2; exit 1; }\n'
+
+
+def render_script(access: OperatorAccess, *, root: str = "", require_atelo: bool = True) -> str:
+    """Bootstrap script; prints `NODE_OPERATOR_ACCESS_BACKUP=<dir>` and reverts itself on failure.
+
+    `require_atelo=False` is for hosts where another identity holds the atelo role (the asset
+    connector's OS Login owner); the sshd check that atelo is unaffected still runs.
+    """
+    body = _APPLY if require_atelo else _APPLY.replace(_ATELO_CHECK, "# atelo role held by another identity on this host\n")
     body = (
-        _APPLY.replace("@DROPIN@", SSHD_DROPIN.format(src="$SRC", laddr="$TSIP"))
+        body.replace("@DROPIN@", SSHD_DROPIN.format(src="$SRC", laddr="$TSIP"))
         .replace("@SRC@", shlex.quote(access.source_ip))
         .replace("@KEY@", shlex.quote(access.public_key))
         .replace("@MARKER@", BACKUP_MARKER)

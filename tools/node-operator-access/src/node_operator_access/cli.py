@@ -28,6 +28,13 @@ _HOST = Annotated[
     str,
     typer.Argument(help="ssh destination of the existing sudo account (alias or user@host); its key comes from ssh config or --ssh-arg."),
 ]
+_SKIP_ATELO = Annotated[
+    bool,
+    typer.Option(
+        "--skip-atelo-check",
+        help="Do not require a local atelo account (hosts where another identity, such as the OS Login owner, holds that role).",
+    ),
+]
 _SSH_ARGS = Annotated[
     list[str] | None,
     typer.Option("--ssh-arg", help="Extra ssh argument for the sudo-account connections (repeatable), e.g. -i KEY."),
@@ -72,10 +79,11 @@ def _check_pair(private_key: Path, public_key: str) -> None:
 
 
 @app.command()
-def render(public_key_file: _PUBKEY, source_ip: _SOURCE) -> None:
+def render(public_key_file: _PUBKEY, source_ip: _SOURCE, skip_atelo_check: _SKIP_ATELO = False) -> None:
     """Print the remote script (review it before piping to `ssh <host> sudo bash -s`)."""
     access = OperatorAccess(public_key=public_key_file.read_text(encoding="utf-8"), source_ip=source_ip)
-    sys.stdout.buffer.write(render_script(access).encode("utf-8"))  # LF only, also on Windows
+    script = render_script(access, require_atelo=not skip_atelo_check)
+    sys.stdout.buffer.write(script.encode("utf-8"))  # LF only, also on Windows
 
 
 @app.command()
@@ -97,11 +105,12 @@ def apply(
         typer.Option(help="Node's tailnet name or 100.x address for the proof; sshd only admits overseer there."),
     ],
     ssh_arg: _SSH_ARGS = None,
+    skip_atelo_check: _SKIP_ATELO = False,
     execute: Annotated[bool, typer.Option("--execute", help="Run it; without this the plan is printed.")] = False,
 ) -> None:
     """Apply with a safety session held open, prove the new login, and revert on any failure."""
     access = OperatorAccess(public_key=public_key_file.read_text(encoding="utf-8"), source_ip=source_ip)
-    script = render_script(access)
+    script = render_script(access, require_atelo=not skip_atelo_check)
     if not execute:
         err.print(f"[yellow]Plan only[/]: would run the script below on {host} with a safety session.")
         sys.stdout.buffer.write(script.encode("utf-8"))

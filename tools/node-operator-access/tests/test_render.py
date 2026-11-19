@@ -74,3 +74,10 @@ def test_restriction_is_enforced_before_any_credential_exists():
     s = _script()
     assert s.index("systemctl reload ssh\n\n# 2.") < s.index("useradd") < s.index('"$AUTHKEYS"\nchown')
     assert s.index("sshd -t\n") < s.index("useradd")
+
+
+def test_atelo_check_can_be_skipped_but_atelo_isolation_is_still_simulated():
+    access = OperatorAccess(public_key=KEY, source_ip="100.64.0.1")
+    assert "atelo account missing" in render_script(access)
+    skipped = render_script(access, require_atelo=False)
+    assert "atelo account missing" not in skipped and "effective atelo 192.0.2.1" in skipped
