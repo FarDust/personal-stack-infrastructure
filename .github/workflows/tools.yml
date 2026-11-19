@@ -1,0 +1,28 @@
+name: Tools
+
+on:
+  pull_request:
+    paths: ["tools/**", ".github/workflows/tools.yml"]
+  push:
+    branches: [main]
+    paths: ["tools/**", ".github/workflows/tools.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  node-operator-access:
+    name: node-operator-access tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: tools/node-operator-access
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Run tests
+        run: uv run --locked pytest -q

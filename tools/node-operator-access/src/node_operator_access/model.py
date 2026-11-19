@@ -5,7 +5,9 @@ import re
 from pydantic import BaseModel, field_validator
 
 _TAILNET_IP = re.compile(r"^100(\.[0-9]{1,3}){3}$")
-_ED25519 = re.compile(r"^ssh-ed25519 [A-Za-z0-9+/=]+( [^\s]+)?$")
+# Strict: base64 body and a plain comment, so the key can never carry shell syntax (it is
+# also shlex-quoted when rendered).
+_ED25519 = re.compile(r"^ssh-ed25519 [A-Za-z0-9+/]+={0,2}( [A-Za-z0-9@._+-]+)?$")
 
 
 class OperatorAccess(BaseModel, frozen=True):

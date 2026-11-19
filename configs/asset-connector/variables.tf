@@ -189,8 +189,8 @@ variable "overseer_public_key" {
   sensitive   = true
 
   validation {
-    condition     = var.overseer_public_key == null || can(regex("^ssh-ed25519 [A-Za-z0-9+/=]+( [^[:space:]]+)?$", var.overseer_public_key))
-    error_message = "Provide a single-line ssh-ed25519 public key."
+    condition     = var.overseer_public_key == null || can(regex("^ssh-ed25519 [A-Za-z0-9+/]+={0,2}( [A-Za-z0-9@._+-]+)?$", var.overseer_public_key))
+    error_message = "Provide a single-line ssh-ed25519 public key whose comment uses only letters, digits and @._+-."
   }
   validation {
     condition     = (var.overseer_public_key == null) == (var.overseer_source_ip == null)
