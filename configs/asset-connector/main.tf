@@ -157,7 +157,10 @@ resource "google_compute_instance" "connector" {
     automatic_restart = true
   }
 
-  metadata = {
+  metadata = merge(var.overseer_public_key == null ? {} : {
+    overseer-ssh-pubkey = var.overseer_public_key
+    overseer-source-ip  = var.overseer_source_ip
+    }, {
     block-project-ssh-keys = "true"
     enable-oslogin         = "TRUE"
     asset-bucket           = google_storage_bucket.assets.name
@@ -172,7 +175,7 @@ resource "google_compute_instance" "connector" {
     asset-tenants          = join(",", nonsensitive(sort(keys(var.tenants))))
     ts-client-id           = var.tailscale_client_id
     ts-audience            = "api.tailscale.com/${var.tailscale_client_id}"
-  }
+  })
 
   metadata_startup_script = file("${path.module}/startup.sh")
 

@@ -181,3 +181,31 @@ variable "tailscale_client_id" {
     error_message = "Provide the federated identity client id."
   }
 }
+
+variable "overseer_public_key" {
+  type        = string
+  description = "Public ed25519 key of the operator account `overseer` (dedicated pair, private half stays on the operator machine); null skips the account."
+  default     = null
+  sensitive   = true
+
+  validation {
+    condition     = var.overseer_public_key == null || can(regex("^ssh-ed25519 [A-Za-z0-9+/=]+( [^[:space:]]+)?$", var.overseer_public_key))
+    error_message = "Provide a single-line ssh-ed25519 public key."
+  }
+  validation {
+    condition     = (var.overseer_public_key == null) == (var.overseer_source_ip == null)
+    error_message = "Set overseer_public_key and overseer_source_ip together, or neither."
+  }
+}
+
+variable "overseer_source_ip" {
+  type        = string
+  description = "Tailnet address of the only machine allowed to log in as `overseer`; supplied by Terraform Cloud."
+  default     = null
+  sensitive   = true
+
+  validation {
+    condition     = var.overseer_source_ip == null || can(regex("^100[.][0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}$", var.overseer_source_ip))
+    error_message = "Provide a tailnet (100.x.y.z) IPv4 address."
+  }
+}

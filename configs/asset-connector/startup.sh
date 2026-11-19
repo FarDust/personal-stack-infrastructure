@@ -18,6 +18,16 @@ CADSHA=$(mdv instance/attributes/caddy-sha512)
 RCV=$(mdv instance/attributes/rclone-version)
 RCSHA=$(mdv instance/attributes/rclone-sha256)
 TENANTS=$(mdv instance/attributes/asset-tenants)
+# Optional attributes: a 404 means the operator access account is not requested.
+mdv_opt() {
+  local out code
+  out=$(mktemp)
+  code=$(curl -sS -o "$out" -w '%{http_code}' -H 'Metadata-Flavor: Google' "$MD/$1")
+  if [ "$code" = 200 ]; then cat "$out"; fi
+  rm -f "$out"
+}
+OVERSEER_PUBKEY=$(mdv_opt instance/attributes/overseer-ssh-pubkey)
+OVERSEER_SRC=$(mdv_opt instance/attributes/overseer-source-ip)
 
 token() { mdv instance/service-accounts/default/token | sed -E 's/.*"access_token":"([^"]+)".*/\1/'; }
 
@@ -269,3 +279,52 @@ UNIT
 /usr/local/bin/caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl daemon-reload
 systemctl enable --now caddy asset-cdn-sync.timer asset-cdn-egress.timer
+
+# Operator account `overseer` (decision: docs/adr/asset_connector_overseer_access_adr.md): key-only,
+# passwordless sudo, reachable over the tailnet from one source address. OS Login stays the way in
+# for the owner's Google identity; this account never replaces it. Idempotent on every boot.
+setup_overseer() {
+  [ -n "$OVERSEER_PUBKEY" ] && [ -n "$OVERSEER_SRC" ] || { echo "overseer not requested; skipping"; return 0; }
+  [[ "$OVERSEER_SRC" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || { echo "invalid overseer source address" >&2; return 1; }
+  [[ "$OVERSEER_PUBKEY" =~ ^ssh-ed25519\ [A-Za-z0-9+/=]+(\ [^[:cntrl:]]*)?$ ]] || { echo "invalid overseer public key" >&2; return 1; }
+  local tsip
+  tsip=$(/usr/local/bin/tailscale ip -4 | head -n1)
+  [[ "$tsip" =~ ^100\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || { echo "tailnet address not available" >&2; return 1; }
+
+  id overseer >/dev/null 2>&1 || useradd --create-home --shell /bin/bash --comment "Operator account" overseer
+  passwd -l overseer >/dev/null
+  install -d -m 0700 -o overseer -g overseer /home/overseer/.ssh
+  printf '%s
+' "$OVERSEER_PUBKEY" >/home/overseer/.ssh/authorized_keys
+  chown overseer:overseer /home/overseer/.ssh/authorized_keys
+  chmod 0600 /home/overseer/.ssh/authorized_keys
+
+  local sd
+  sd=$(mktemp)
+  echo 'overseer ALL=(ALL) NOPASSWD:ALL' >"$sd"
+  visudo -cf "$sd"
+  install -m 0440 -o root -g root "$sd" /etc/sudoers.d/90-overseer-nopasswd
+  rm -f "$sd"
+
+  # Same keyword in both Match blocks: the first value wins, so the specific block overrides the
+  # generic one. AllowUsers in one block and DenyUsers in the other denies everyone.
+  install -d -m 0755 /etc/ssh/sshd_config.d
+  cat >/etc/ssh/sshd_config.d/overseer-restrict.conf <<SSHD
+Match User overseer Address ${OVERSEER_SRC} LocalAddress ${tsip}
+    AllowUsers overseer
+    AuthenticationMethods publickey
+Match User overseer
+    AllowUsers nobody-matches-this
+    AuthenticationMethods publickey
+SSHD
+  chmod 0644 /etc/ssh/sshd_config.d/overseer-restrict.conf
+
+  # Validate the effective result before reloading; a bad drop-in is removed, never left half-applied.
+  if ! sshd -t     || ! sshd -T -C "user=overseer,host=x,addr=${OVERSEER_SRC},laddr=${tsip},lport=22" | grep -qx 'allowusers overseer'     || sshd -T -C "user=overseer,host=x,addr=192.0.2.1,laddr=${tsip},lport=22" | grep -qx 'allowusers overseer'; then
+    rm -f /etc/ssh/sshd_config.d/overseer-restrict.conf
+    echo "sshd rejected the overseer drop-in; removed it" >&2
+    return 1
+  fi
+  systemctl reload ssh
+}
+setup_overseer

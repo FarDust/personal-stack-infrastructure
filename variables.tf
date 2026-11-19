@@ -397,3 +397,17 @@ variable "asset_connector_tailscale_client_id" {
   sensitive   = true
   nullable    = false
 }
+
+variable "asset_connector_overseer_public_key" {
+  type        = string
+  description = "Public ed25519 key of the connector operator account; supplied by Terraform Cloud. Null skips the account."
+  default     = null
+  sensitive   = true
+}
+
+variable "asset_connector_overseer_source_ip" {
+  type        = string
+  description = "Tailnet address allowed to log in as the connector operator account; supplied by Terraform Cloud."
+  default     = null
+  sensitive   = true
+}

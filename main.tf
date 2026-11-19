@@ -109,4 +109,6 @@ module "asset_connector" {
   notification_email  = var.asset_connector_notification_email
   billing_account_id  = var.asset_connector_billing_account_id
   budget_usd          = var.asset_connector_budget_usd
+  overseer_public_key = var.asset_connector_overseer_public_key
+  overseer_source_ip  = var.asset_connector_overseer_source_ip
 }
