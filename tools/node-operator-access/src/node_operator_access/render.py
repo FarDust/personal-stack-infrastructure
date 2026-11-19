@@ -63,12 +63,15 @@ TSIP=${TSIP%%$'\n'*}
 id atelo >/dev/null 2>&1 || { echo "atelo account missing; create it first" >&2; exit 1; }
 
 mkdir -p "$BK"
-echo "@MARKER@${BK#"$ROOT"}"
 for f in "$DROP" "$SUDOERS" "$AUTHKEYS" "$SSHD_CONFIG"; do
   # No `cp --parents`: with -a it fails on absolute paths in coreutils 9.1 (Debian 12), seen
   # on the asset connector 2026-11-19 ("cp: 'etc/ssh': No such file or directory").
   if [ -e "$f" ]; then mkdir -p "$BK${f%/*}"; cp -a "$f" "$BK$f"; fi
 done
+# Only a complete backup is announced and revertible: reverting a partial one would delete
+# live files that were never copied.
+touch "$BK/backup-complete"
+echo "@MARKER@${BK#"$ROOT"}"
 on_exit() { if [ "$1" -ne 0 ]; then rollback; fi; }
 trap 'on_exit $?' EXIT
 
@@ -112,6 +115,7 @@ echo "operator access applied; backup in $BK"
 
 _REVERT = r"""BK=$ROOT@BK@
 [ -d "$BK" ] || { echo "backup $BK not found" >&2; exit 1; }
+[ -e "$BK/backup-complete" ] || { echo "backup $BK is incomplete; refusing to revert from it" >&2; exit 1; }
 rollback
 echo "operator access reverted from $BK"
 """
