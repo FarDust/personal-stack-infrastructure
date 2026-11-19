@@ -21,6 +21,9 @@ def test_rejects_non_ed25519_and_public_source():
         OperatorAccess(public_key="ssh-rsa AAAA", source_ip="100.64.0.1")
     with pytest.raises(ValidationError):
         OperatorAccess(public_key=KEY, source_ip="203.0.113.5")
+    for outside in ("100.200.0.1", "100.63.255.255", "100.64.0.999"):
+        with pytest.raises(ValidationError):
+            OperatorAccess(public_key=KEY, source_ip=outside)
 
 
 def test_same_keyword_in_both_match_blocks_and_publickey():

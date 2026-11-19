@@ -1,5 +1,6 @@
 """Typed, validated inputs for the operator-account bootstrap."""
 
+import ipaddress
 import re
 
 from pydantic import BaseModel, field_validator
@@ -7,6 +8,7 @@ from pydantic import BaseModel, field_validator
 _TAILNET_IP = re.compile(r"^100(\.[0-9]{1,3}){3}$")
 # Strict: base64 body and a plain comment, so the key can never carry shell syntax (it is
 # also shlex-quoted when rendered).
+_TAILNET_RANGE = ipaddress.IPv4Network("100.64.0.0/10")
 _ED25519 = re.compile(r"^ssh-ed25519 [A-Za-z0-9+/]+={0,2}( [A-Za-z0-9@._+-]+)?$")
 
 
@@ -26,6 +28,6 @@ class OperatorAccess(BaseModel, frozen=True):
     @field_validator("source_ip")
     @classmethod
     def _ip(cls, v: str) -> str:
-        if not _TAILNET_IP.fullmatch(v):
-            raise ValueError("source_ip must be a tailnet (100.x.y.z) IPv4 address")
+        if not _TAILNET_IP.fullmatch(v) or ipaddress.IPv4Address(v) not in _TAILNET_RANGE:
+            raise ValueError("source_ip must be a tailnet IPv4 address inside 100.64.0.0/10")
         return v

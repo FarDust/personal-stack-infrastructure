@@ -148,6 +148,30 @@ run "reject_non_ed25519_overseer_key" {
   expect_failures = [var.overseer_public_key]
 }
 
+run "reject_overseer_source_outside_tailnet_range" {
+  command = plan
+  module {
+    source = "./configs/asset-connector"
+  }
+  variables {
+    overseer_public_key = "ssh-ed25519 AAAAexamplekey overseer@example"
+    overseer_source_ip  = "100.200.0.1"
+  }
+  expect_failures = [var.overseer_source_ip]
+}
+
+run "reject_overseer_source_with_invalid_octet" {
+  command = plan
+  module {
+    source = "./configs/asset-connector"
+  }
+  variables {
+    overseer_public_key = "ssh-ed25519 AAAAexamplekey overseer@example"
+    overseer_source_ip  = "100.64.0.999"
+  }
+  expect_failures = [var.overseer_source_ip]
+}
+
 run "reject_public_overseer_source" {
   command = plan
   module {

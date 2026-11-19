@@ -205,7 +205,13 @@ variable "overseer_source_ip" {
   sensitive   = true
 
   validation {
-    condition     = var.overseer_source_ip == null || can(regex("^100[.][0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}$", var.overseer_source_ip))
-    error_message = "Provide a tailnet (100.x.y.z) IPv4 address."
+    condition = var.overseer_source_ip == null || try(
+      can(regex("^100[.][0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}$", var.overseer_source_ip))
+      && alltrue([for octet in split(".", var.overseer_source_ip) : tonumber(octet) <= 255])
+      && tonumber(split(".", var.overseer_source_ip)[1]) >= 64
+      && tonumber(split(".", var.overseer_source_ip)[1]) <= 127,
+      false
+    )
+    error_message = "Provide a tailnet IPv4 address inside 100.64.0.0/10."
   }
 }
