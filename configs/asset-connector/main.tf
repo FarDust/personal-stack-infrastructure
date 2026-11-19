@@ -157,7 +157,10 @@ resource "google_compute_instance" "connector" {
     automatic_restart = true
   }
 
-  metadata = {
+  metadata = merge(var.overseer_public_key == null ? {} : {
+    overseer-ssh-pubkey = var.overseer_public_key
+    overseer-source-ip  = var.overseer_source_ip
+    }, {
     block-project-ssh-keys = "true"
     enable-oslogin         = "TRUE"
     asset-bucket           = google_storage_bucket.assets.name
@@ -172,9 +175,17 @@ resource "google_compute_instance" "connector" {
     asset-tenants          = join(",", nonsensitive(sort(keys(var.tenants))))
     ts-client-id           = var.tailscale_client_id
     ts-audience            = "api.tailscale.com/${var.tailscale_client_id}"
-  }
+  })
 
   metadata_startup_script = file("${path.module}/startup.sh")
+
+  # metadata_startup_script is ForceNew in the google provider: a startup.sh edit would recreate the
+  # VM (asset CDN outage, new boot disk and tailnet node). Edits land on the next deliberate
+  # replacement (terraform apply -replace); the running VM gets changes through the reviewed
+  # node-operator-access path. Decision: docs/adr/asset_connector_overseer_access_adr.md
+  lifecycle {
+    ignore_changes = [metadata_startup_script]
+  }
 
   depends_on = [
     google_storage_bucket_iam_member.connector_reader,

@@ -18,6 +18,22 @@ CADSHA=$(mdv instance/attributes/caddy-sha512)
 RCV=$(mdv instance/attributes/rclone-version)
 RCSHA=$(mdv instance/attributes/rclone-sha256)
 TENANTS=$(mdv instance/attributes/asset-tenants)
+# Optional attributes: a 404 means the operator access account is not requested. Any other
+# status is an error, like a failed required attribute: a metadata outage must not read as
+# "not requested" and tear the account down.
+mdv_opt() {
+  local out code
+  out=$(mktemp)
+  code=$(curl -sS -o "$out" -w '%{http_code}' -H 'Metadata-Flavor: Google' "$MD/$1")
+  case "$code" in
+    200) cat "$out" ;;
+    404) ;;
+    *) echo "metadata $1 returned HTTP $code" >&2; rm -f "$out"; return 1 ;;
+  esac
+  rm -f "$out"
+}
+OVERSEER_PUBKEY=$(mdv_opt instance/attributes/overseer-ssh-pubkey)
+OVERSEER_SRC=$(mdv_opt instance/attributes/overseer-source-ip)
 
 token() { mdv instance/service-accounts/default/token | sed -E 's/.*"access_token":"([^"]+)".*/\1/'; }
 
@@ -269,3 +285,86 @@ UNIT
 /usr/local/bin/caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl daemon-reload
 systemctl enable --now caddy asset-cdn-sync.timer asset-cdn-egress.timer
+
+# Operator account `overseer` (decision: docs/adr/asset_connector_overseer_access_adr.md): key-only,
+# passwordless sudo, reachable over the tailnet from one source address. OS Login stays the way in
+# for the owner's Google identity; this account never replaces it. Idempotent on every boot.
+OVERSEER_DROP=/etc/ssh/sshd_config.d/overseer-restrict.conf
+OVERSEER_SUDOERS=/etc/sudoers.d/90-overseer-nopasswd
+OVERSEER_AUTHKEYS=/home/overseer/.ssh/authorized_keys
+
+# Remove the credentials (key and sudo) and lock the password; the account and its home stay.
+revoke_overseer() {
+  rm -f "$OVERSEER_SUDOERS" "$OVERSEER_AUTHKEYS"
+  if id overseer >/dev/null 2>&1; then passwd -l overseer >/dev/null; fi
+}
+
+setup_overseer() {
+  if [ -z "$OVERSEER_PUBKEY" ] || [ -z "$OVERSEER_SRC" ]; then
+    # Disable path: metadata removed, so a previously created account loses key and sudo.
+    if [ -e "$OVERSEER_SUDOERS" ] || [ -e "$OVERSEER_AUTHKEYS" ]; then
+      revoke_overseer
+      echo "overseer not requested; revoked its key and sudo"
+    else
+      echo "overseer not requested; skipping"
+    fi
+    return 0
+  fi
+  [[ "$OVERSEER_SRC" =~ ^100\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || { echo "invalid overseer source address" >&2; revoke_overseer; return 1; }
+  [[ "$OVERSEER_PUBKEY" =~ ^ssh-ed25519\ [A-Za-z0-9+/]+={0,2}(\ [A-Za-z0-9@._+-]+)?$ ]] || { echo "invalid overseer public key" >&2; revoke_overseer; return 1; }
+  local tsip
+  tsip=$(/usr/local/bin/tailscale ip -4)
+  tsip=${tsip%%$'\n'*}
+  [[ "$tsip" =~ ^100\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || { echo "tailnet address not available" >&2; revoke_overseer; return 1; }
+
+  # 1. Restriction first: written, validated and live before the key or sudo exist. AllowUsers
+  # values accumulate across matching blocks: from the permitted source on the tailnet address
+  # both apply (overseer is listed); elsewhere only nobody-matches-this applies, which admits no
+  # one. AllowUsers in one block and DenyUsers in the other would deny everyone.
+  install -d -m 0755 /etc/ssh/sshd_config.d
+  cat >"$OVERSEER_DROP" <<SSHD
+Match User overseer Address ${OVERSEER_SRC} LocalAddress ${tsip}
+    AllowUsers overseer
+    AuthenticationMethods publickey
+Match User overseer
+    AllowUsers nobody-matches-this
+    AuthenticationMethods publickey
+SSHD
+  chmod 0644 "$OVERSEER_DROP"
+
+  # Capture before grepping: under pipefail `sshd -T | grep -q` fails when grep exits early and
+  # sshd dies of SIGPIPE (exit 141), which would reject every drop-in.
+  local permitted denied
+  if sshd -t; then
+    permitted=$(sshd -T -C "user=overseer,host=x,addr=${OVERSEER_SRC},laddr=${tsip},lport=22") || permitted=
+    denied=$(sshd -T -C "user=overseer,host=x,addr=192.0.2.1,laddr=${tsip},lport=22") || denied='allowusers overseer'
+  else
+    permitted='' denied='allowusers overseer'
+  fi
+  if ! grep -qx 'allowusers overseer' <<<"$permitted" || grep -qx 'allowusers overseer' <<<"$denied"; then
+    # Fail closed: credentials go first, so removing the broken drop-in never leaves a key login
+    # without the source restriction.
+    revoke_overseer
+    rm -f "$OVERSEER_DROP"
+    if sshd -t; then systemctl reload ssh; fi
+    echo "sshd rejected the overseer drop-in; revoked the account's key and sudo and removed the drop-in" >&2
+    return 1
+  fi
+  systemctl reload ssh
+
+  # 2. Account, key and sudo, behind the restriction that is already enforced.
+  id overseer >/dev/null 2>&1 || useradd --create-home --shell /bin/bash --comment "Operator account" overseer
+  passwd -l overseer >/dev/null
+  install -d -m 0700 -o overseer -g overseer /home/overseer/.ssh
+  printf '%s\n' "$OVERSEER_PUBKEY" >"$OVERSEER_AUTHKEYS"
+  chown overseer:overseer "$OVERSEER_AUTHKEYS"
+  chmod 0600 "$OVERSEER_AUTHKEYS"
+
+  local sd
+  sd=$(mktemp)
+  echo 'overseer ALL=(ALL) NOPASSWD:ALL' >"$sd"
+  visudo -cf "$sd"
+  install -m 0440 -o root -g root "$sd" "$OVERSEER_SUDOERS"
+  rm -f "$sd"
+}
+setup_overseer

@@ -12,3 +12,5 @@
 - [ADR: Wallet signing](adr/wallet_signing_adr.md): dedicated identity, signing-only permission and verification boundary.
 - [ADR: Loki prefix-scoped identity](adr/loki_gcs_prefix_identity_adr.md): service account, managed folder, credential type and lifecycle for Loki. Implemented in `configs/loki-storage`, `configs/storage` (`noncurrent_version_expiry`), tested in `tests/loki_storage.tftest.hcl`.
 - [ADR: private asset CDN on the tailnet](adr/asset_connector_adr.md): free-tier private bucket plus IPv6-only caching connector, multi-tenant contract, cost guards. Implemented in `configs/asset-connector`, tested in `tests/asset_connector.tftest.hcl`.
+- [ADR: operator access to the asset connector](adr/asset_connector_overseer_access_adr.md): key-only `overseer` account, passwordless sudo and the source-address restriction. Implemented in `configs/asset-connector/startup.sh`, tested in `tests/asset_connector.tftest.hcl`.
+- [Operator access tool](../tools/node-operator-access/pyproject.toml): `node-operator-access render|apply`, the runbook of ADR part 2 for nodes that are not in Terraform; tests in `tools/node-operator-access/tests`.
