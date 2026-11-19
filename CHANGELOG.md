@@ -10,6 +10,7 @@ This repository's releases follow Semantic Versioning once tagged.
 
 ### Fixed
 
+- `tools/node-operator-access` backs up files without `cp -a --parents`, which fails on absolute paths with coreutils 9.1 (Debian 12; first seen on the asset connector 2026-11-19, reverted cleanly). The overseer source address is validated as 100.64.0.0/10 without leading zeros in Terraform, the boot script and the tool.
 - `sshd -T` checks in `tools/node-operator-access` and the asset connector startup script capture the output before `grep`: under `set -o pipefail` an early-exiting `grep -q` made `sshd` die of SIGPIPE (exit 141), so every check failed and the drop-in was always rolled back (first seen on an Oracle micro node, 2026-11-19, reverted cleanly).
 
 - `configs/asset-connector`: optional key-only `overseer` operator account with passwordless sudo, restricted by sshd to one tailnet source address (backward-compatible MINOR capability; default disabled). ADR `docs/adr/asset_connector_overseer_access_adr.md`.

@@ -29,6 +29,7 @@ _FAKES = {
     "passwd": "true",
     "chown": "true",
     "visudo": "true",
+    "cp": 'if [ -n "${FAKE_CP_FAIL:-}" ] && [[ "$*" == *"$FAKE_CP_FAIL"* ]]; then exit 1; fi; exec /usr/bin/cp "$@"',
     "systemctl": 'echo "systemctl $*" >>"$FAKE_ROOT/calls"',
     "install": (
         'd=0; args=(); while [ $# -gt 0 ]; do case "$1" in -d) d=1;; -m|-o|-g) shift;; *) args+=("$1");; esac; shift; done; '
@@ -139,3 +140,21 @@ def test_revert_keeps_a_preexisting_overseer_and_restores_its_key(node):
 def test_revert_rejects_a_foreign_backup_path():
     with pytest.raises(ValueError):
         render_revert_script("/etc")
+
+
+def test_failed_backup_copy_leaves_live_files_and_cannot_be_reverted(node):
+    root: Path = node["root"]
+    sudoers = root / "etc/sudoers.d/90-overseer-nopasswd"
+    drop = root / "etc/ssh/sshd_config.d/overseer-restrict.conf"
+    sudoers.write_text("overseer ALL=(ALL) NOPASSWD:ALL\n")
+    drop.write_text("Match User overseer\n    AllowUsers nobody-matches-this\n")
+    node["env"]["FAKE_CP_FAIL"] = "90-overseer-nopasswd"
+    done = _apply(node)
+    assert done.returncode != 0
+    assert parse_backup_dir(done.stdout) is None  # never announced, so the CLI never reverts it
+    assert sudoers.exists() and drop.exists()  # live files untouched
+    partial = next((root / "var/backups").iterdir())
+    revert = render_revert_script("/var/backups/" + partial.name, root=_bash_path(root))
+    refused = _run(revert, {**node["env"], "FAKE_CP_FAIL": ""})
+    assert refused.returncode != 0 and "incomplete" in refused.stderr
+    assert sudoers.exists() and drop.exists()
