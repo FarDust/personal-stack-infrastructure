@@ -206,7 +206,7 @@ variable "overseer_source_ip" {
 
   validation {
     condition = var.overseer_source_ip == null || try(
-      can(regex("^100[.][0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}$", var.overseer_source_ip))
+      can(regex("^100([.](0|[1-9][0-9]{0,2})){3}$", var.overseer_source_ip))
       && alltrue([for octet in split(".", var.overseer_source_ip) : tonumber(octet) <= 255])
       && tonumber(split(".", var.overseer_source_ip)[1]) >= 64
       && tonumber(split(".", var.overseer_source_ip)[1]) <= 127,

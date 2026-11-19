@@ -21,7 +21,7 @@ def test_rejects_non_ed25519_and_public_source():
         OperatorAccess(public_key="ssh-rsa AAAA", source_ip="100.64.0.1")
     with pytest.raises(ValidationError):
         OperatorAccess(public_key=KEY, source_ip="203.0.113.5")
-    for outside in ("100.200.0.1", "100.63.255.255", "100.64.0.999"):
+    for outside in ("100.200.0.1", "100.63.255.255", "100.64.0.999", "100.064.0.1"):
         with pytest.raises(ValidationError):
             OperatorAccess(public_key=KEY, source_ip=outside)
 
@@ -84,3 +84,8 @@ def test_atelo_check_can_be_skipped_but_atelo_isolation_is_still_simulated():
     assert "atelo account missing" in render_script(access)
     skipped = render_script(access, require_atelo=False)
     assert "atelo account missing" not in skipped and "effective atelo 192.0.2.1" in skipped
+
+
+def test_backup_avoids_cp_parents():
+    """coreutils 9.1 `cp -a --parents` fails on absolute paths (Debian 12)."""
+    assert not re.search(r"^[^#\n]*\bcp [^\n]*--parents", _script(), re.M)

@@ -172,6 +172,18 @@ run "reject_overseer_source_with_invalid_octet" {
   expect_failures = [var.overseer_source_ip]
 }
 
+run "reject_overseer_source_with_leading_zero" {
+  command = plan
+  module {
+    source = "./configs/asset-connector"
+  }
+  variables {
+    overseer_public_key = "ssh-ed25519 AAAAexamplekey overseer@example"
+    overseer_source_ip  = "100.064.0.1"
+  }
+  expect_failures = [var.overseer_source_ip]
+}
+
 run "reject_public_overseer_source" {
   command = plan
   module {

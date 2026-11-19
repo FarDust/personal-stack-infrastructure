@@ -310,7 +310,16 @@ setup_overseer() {
     fi
     return 0
   fi
-  [[ "$OVERSEER_SRC" =~ ^100\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || { echo "invalid overseer source address" >&2; revoke_overseer; return 1; }
+  # Same rule as the Terraform validation: 100.64.0.0/10, no leading zeros.
+  local o2 o3 o4
+  if [[ "$OVERSEER_SRC" =~ ^100\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+    o2=${BASH_REMATCH[1]} o3=${BASH_REMATCH[2]} o4=${BASH_REMATCH[3]}
+  else
+    o2=0 o3=999 o4=999
+  fi
+  if ((o2 < 64 || o2 > 127 || o3 > 255 || o4 > 255)); then
+    echo "invalid overseer source address" >&2; revoke_overseer; return 1
+  fi
   [[ "$OVERSEER_PUBKEY" =~ ^ssh-ed25519\ [A-Za-z0-9+/]+={0,2}(\ [A-Za-z0-9@._+-]+)?$ ]] || { echo "invalid overseer public key" >&2; revoke_overseer; return 1; }
   local tsip
   tsip=$(/usr/local/bin/tailscale ip -4)

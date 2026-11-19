@@ -65,7 +65,9 @@ id atelo >/dev/null 2>&1 || { echo "atelo account missing; create it first" >&2;
 mkdir -p "$BK"
 echo "@MARKER@${BK#"$ROOT"}"
 for f in "$DROP" "$SUDOERS" "$AUTHKEYS" "$SSHD_CONFIG"; do
-  if [ -e "$f" ]; then cp -a --parents "$f" "$BK"; fi
+  # No `cp --parents`: with -a it fails on absolute paths in coreutils 9.1 (Debian 12), seen
+  # on the asset connector 2026-11-19 ("cp: 'etc/ssh': No such file or directory").
+  if [ -e "$f" ]; then mkdir -p "$BK${f%/*}"; cp -a "$f" "$BK$f"; fi
 done
 on_exit() { if [ "$1" -ne 0 ]; then rollback; fi; }
 trap 'on_exit $?' EXIT
