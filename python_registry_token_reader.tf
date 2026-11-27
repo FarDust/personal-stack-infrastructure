@@ -45,14 +45,16 @@ locals {
     alias => "serviceAccount:${reader.account_id}@${var.project_id}.iam.gserviceaccount.com"
   }
 
-  python_registry_token_reader_privileged_principals = concat(
+  # Compared in lower case: IAM emails are case-insensitive, so casing cannot hide an overlap.
+  python_registry_token_reader_privileged_principals = [for principal in concat(
     values(var.python_artifact_registry_writers),
     values(var.python_artifact_registry_readers),
     values(var.cluster_artifact_registry_writers),
+    values(var.cluster_artifact_registry_readers),
     values(var.artifact_bucket_writers),
     flatten([for tenant in values(var.asset_connector_tenants) : tenant.writers]),
     var.wallet_signer_members,
-  )
+  ) : lower(principal)]
 }
 
 # Keyless, repository-scoped reader impersonated by a named minter; see docs/adr/python_registry_token_reader_adr.md.
@@ -66,15 +68,15 @@ resource "google_service_account" "python_registry_token_reader" {
 
   lifecycle {
     precondition {
-      condition     = !contains(local.python_registry_token_reader_privileged_principals, local.python_registry_token_reader_principals[each.key])
-      error_message = "A token reader must not appear in a registry reader or writer map, a bucket or asset-tenant writer list, or the Wallet signer list managed by this root; it has one state owner and read-only access."
+      condition     = !contains(local.python_registry_token_reader_privileged_principals, lower(local.python_registry_token_reader_principals[each.key]))
+      error_message = "A token reader must not appear in a Python or image registry reader or writer map, a bucket or asset-tenant writer list, or the Wallet signer list managed by this root; it has one state owner and read-only access."
     }
     precondition {
       condition     = !contains(compact([var.wallet_signer_service_account_id, var.loki_service_account_id, var.workspace_backup_writer_service_account_id]), var.python_registry_token_readers[each.key].account_id)
       error_message = "A token reader needs its own service-account ID, distinct from the Wallet signer, Loki and backup writer identities."
     }
     precondition {
-      condition     = !contains(values(var.python_registry_token_readers[each.key].token_minters), local.python_registry_token_reader_principals[each.key])
+      condition     = !contains([for minter in values(var.python_registry_token_readers[each.key].token_minters) : lower(minter)], lower(local.python_registry_token_reader_principals[each.key]))
       error_message = "A token reader cannot be its own minter."
     }
   }

@@ -196,6 +196,22 @@ run "reject_reader_as_image_writer" {
   expect_failures = [google_service_account.python_registry_token_reader]
 }
 
+run "reject_reader_as_image_reader" {
+  command = plan
+  variables {
+    cluster_artifact_registry_readers = { image_reader = "serviceAccount:example-token-reader@example-project.iam.gserviceaccount.com" }
+  }
+  expect_failures = [google_service_account.python_registry_token_reader]
+}
+
+run "reject_reader_as_writer_with_different_casing" {
+  command = plan
+  variables {
+    python_artifact_registry_writers = { publisher = "serviceAccount:EXAMPLE-TOKEN-READER@example-project.iam.gserviceaccount.com" }
+  }
+  expect_failures = [google_service_account.python_registry_token_reader]
+}
+
 run "reject_reader_as_bucket_writer" {
   command = plan
   variables {

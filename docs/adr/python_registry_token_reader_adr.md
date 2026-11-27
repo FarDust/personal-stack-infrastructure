@@ -35,7 +35,8 @@ default is 3600 seconds and the maximum without an organization policy change is
 
 Lifecycle preconditions reject a reader whose principal (derived from its
 account ID and the project) appears in any registry reader or writer map,
-bucket writer list, asset-tenant writer list or the Wallet signer list managed
+bucket writer list, asset-tenant writer list (image registry readers included,
+compared case-insensitively) or the Wallet signer list managed
 by this root, an account ID shared with the Wallet, Loki or backup-writer
 identities, and a reader listed as its own minter. Principals computed by the
 shared federation module are not compared, because their emails are known only
@@ -56,8 +57,9 @@ contain aliases.
   non-GitHub workloads, but the realm remains dormant behind its own production
   gates recorded in the operator's private decision record ("Keycloak GCP
   workload federation boundary"). When it is
-  promoted, the minter alias can be replaced by a federated principal by
-  changing the variable value; this configuration stays.
+  promoted, a federated minter needs a `principal://` or `principalSet://`
+  member, which the minter validation rejects today; that migration widens the
+  validation and its tests in the same change, then replaces the minter value.
 - **Project-level token creator.** Would let the minter impersonate every
   account in the project. Rejected in favour of a member on the single reader
   account.
