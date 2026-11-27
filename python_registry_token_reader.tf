@@ -39,6 +39,7 @@ locals {
   ])))
 
   # The provider reports the email only after apply; it is derived from the account ID so preconditions hold at plan time.
+  # Domain-scoped project IDs are not supported by this derivation.
   python_registry_token_reader_principals = {
     for alias, reader in var.python_registry_token_readers :
     alias => "serviceAccount:${reader.account_id}@${var.project_id}.iam.gserviceaccount.com"
@@ -90,6 +91,7 @@ resource "google_artifact_registry_repository_iam_member" "python_registry_token
 }
 
 resource "google_service_account_iam_member" "python_registry_token_minter" {
+  # Keys are "<reader alias>/<minter alias>"; the alias validation forbids "/".
   for_each = local.python_registry_token_minter_keys
 
   service_account_id = google_service_account.python_registry_token_reader[split("/", each.key)[0]].name

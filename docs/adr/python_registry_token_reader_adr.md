@@ -37,7 +37,11 @@ Lifecycle preconditions reject a reader whose principal (derived from its
 account ID and the project) appears in any registry reader or writer map,
 bucket writer list, asset-tenant writer list or the Wallet signer list managed
 by this root, an account ID shared with the Wallet, Loki or backup-writer
-identities, and a reader listed as its own minter. Account IDs, minter
+identities, and a reader listed as its own minter. Principals computed by the
+shared federation module are not compared, because their emails are known only
+after apply; the distinct account ID keeps the reader separate from them.
+Minters may live in another project; chained impersonation between two reader
+aliases is allowed but grants nothing beyond repository read access. Account IDs, minter
 principals and the project stay in workspace variables; resource addresses only
 contain aliases.
 
@@ -50,7 +54,8 @@ contain aliases.
   storage account's broader grants. Rejected.
 - **Keycloak workload federation realm.** The intended keyless path for
   non-GitHub workloads, but the realm remains dormant behind its own production
-  gates (vault decision "Keycloak GCP workload federation boundary"). When it is
+  gates recorded in the operator's private decision record ("Keycloak GCP
+  workload federation boundary"). When it is
   promoted, the minter alias can be replaced by a federated principal by
   changing the variable value; this configuration stays.
 - **Project-level token creator.** Would let the minter impersonate every
@@ -76,7 +81,7 @@ Versioning).
 `tests/python_registry_token_reader.tftest.hcl` covers the repository-scoped
 reader, the token-creator member, empty default, multiple minters, user and
 public minters, missing minters, malformed aliases and account IDs, duplicated
-account IDs, overlap with every privileged map, account ID reuse and
+account IDs, overlap with every plan-time privileged map, account ID reuse and
 self-minting. Before deployment, review a full HCP plan with exactly one
 service account, one repository reader member and one token-creator member per
 minter, and no other changes. After apply, verify the service-account policy

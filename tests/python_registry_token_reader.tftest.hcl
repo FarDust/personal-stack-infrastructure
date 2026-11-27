@@ -229,6 +229,14 @@ run "reject_account_id_shared_with_loki" {
   expect_failures = [google_service_account.python_registry_token_reader]
 }
 
+run "reject_account_id_shared_with_backup_writer" {
+  command = plan
+  variables {
+    workspace_backup_writer_service_account_id = "example-token-reader"
+  }
+  expect_failures = [google_service_account.python_registry_token_reader]
+}
+
 run "reject_self_minting" {
   command = plan
   variables {
