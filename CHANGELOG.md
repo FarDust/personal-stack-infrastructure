@@ -6,6 +6,7 @@ This repository's releases follow Semantic Versioning once tagged.
 
 ### Added
 
+- Impersonated Python registry token readers: keyless repository-scoped reader accounts that named service-account minters impersonate for short-lived tokens (backward-compatible MINOR capability; default disabled). ADR `docs/adr/python_registry_token_reader_adr.md`.
 - `tools/node-operator-access`: idempotent `atelo`/`overseer` operator-account bootstrap with sshd simulation, backup and rollback for nodes outside Terraform. `apply` takes `--overseer-public-key-file` and `--overseer-private-key-file` (the overseer key pair; the sudo account's key comes from the ssh alias), reverts through the CLI when the post-apply `overseer` login fails, and `revert --backup-dir` removes an `overseer` account it created.
 
 ### Fixed

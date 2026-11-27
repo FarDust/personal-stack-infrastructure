@@ -267,3 +267,13 @@ uv through the environment, never through arguments, files or logs. This grant d
 The module input `cluster_artifact_registry_readers` receives the root variable `python_artifact_registry_readers`.
 Moving the cluster to Keycloak workload federation replaces that principal by changing the variable
 value, not this configuration.
+
+### Token readers for workloads outside GCP and GitHub
+
+`python_registry_token_readers` (sensitive, empty by default) maps neutral aliases to a dedicated
+reader account ID and aliased minter principals. Each alias gets one keyless service account with
+`roles/artifactregistry.reader` on the Python repository only, and each minter gets
+`roles/iam.serviceAccountTokenCreator` on that account only. The cluster trust-agent holds the
+minter credential and issues 600 second access tokens for the reader to CI workers, so jobs never
+receive the long-lived credential. The sensitive output `python_registry_token_reader_emails` gives
+the impersonation target. See [the ADR](adr/python_registry_token_reader_adr.md).
